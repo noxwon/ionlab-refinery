@@ -23,3 +23,23 @@ bucket_name = "ionlab-refinery-img"
 # 3. 환경 변수
 [vars]
 R2_PUBLIC_ENDPOINT = "https://50ae1037c217963ee7964fb37487644c.r2.cloudflarestorage.com/ionlab-refinery-img"
+
+# 4. 관찰 가능성 및 실시간 로그 (Observability & Logs)
+[observability]
+enabled = true
+head_sampling_rate = 1
+redact_query_string = false
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+persist = true
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 1
+persist = true
+
+[observability.issues]
+enabled = true
