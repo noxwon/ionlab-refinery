@@ -1,0 +1,23 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+
+User-agent: Googlebot
+Allow: /
+Disallow: /admin
+
+User-agent: Yeti
+Allow: /
+Disallow: /admin
+
+User-agent: Daumoa
+Allow: /
+Disallow: /admin
+
+User-agent: Bingbot
+Allow: /
+Disallow: /admin
+
+Host: https://refinery.techplay.blog
+Sitemap: https://refinery.techplay.blog/sitemap.xml

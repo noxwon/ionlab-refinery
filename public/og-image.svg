@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#070A11"/>
+      <stop offset="50%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#070A11"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="900" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FDE68A"/>
+      <stop offset="50%" stop-color="#FBBF24"/>
+      <stop offset="100%" stop-color="#F59E0B"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect x="28" y="28" width="1144" height="574" rx="32" stroke="#F59E0B" stroke-opacity="0.45" stroke-width="3"/>
+  <rect x="76" y="78" width="460" height="44" rx="22" fill="#F59E0B" fill-opacity="0.15" stroke="#FBBF24" stroke-opacity="0.5"/>
+  <text x="102" y="106" fill="#FBBF24" font-family="Pretendard, sans-serif" font-size="18" font-weight="800">
+    특허출원 제10-2026-0182129호 기반 정밀 습식 정련
+  </text>
+  <text x="76" y="198" fill="#FFFFFF" font-family="Pretendard, sans-serif" font-size="52" font-weight="900">
+    IONLAB REFINERY | 이온랩 리파이너리
+  </text>
+  <text x="76" y="274" fill="url(#gold)" font-family="Pretendard, sans-serif" font-size="44" font-weight="900">
+    1kg 소량 모재부터 1인 1배치 단독 순금 추출
+  </text>
+  <text x="76" y="340" fill="#CBD5E1" font-family="Pretendard, sans-serif" font-size="26" font-weight="600">
+    금도금 핀·단자·커넥터 (1일 완성) · IC/BGA 반도체 칩 (2일 완성)
+  </text>
+  <text x="76" y="384" fill="#94A3B8" font-family="Pretendard, sans-serif" font-size="22" font-weight="500">
+    정찰제 공임 · 실시간 KRX 금시세 연동 시뮬레이터 · 단계별 실측 영상/사진 로그 공개
+  </text>
+  <rect x="76" y="446" width="320" height="92" rx="18" fill="#0B0F17" stroke="#34D399" stroke-opacity="0.5"/>
+  <text x="102" y="484" fill="#34D399" font-family="Pretendard, sans-serif" font-size="18" font-weight="700">금도금 모재 기본 1kg</text>
+  <text x="102" y="518" fill="#FFFFFF" font-family="Pretendard, sans-serif" font-size="28" font-weight="900">130,000원 (추가 +3만/kg)</text>
+  <rect x="420" y="446" width="320" height="92" rx="18" fill="#0B0F17" stroke="#38BDF8" stroke-opacity="0.5"/>
+  <text x="446" y="484" fill="#38BDF8" font-family="Pretendard, sans-serif" font-size="18" font-weight="700">IC/BGA 칩 기본 1kg</text>
+  <text x="446" y="518" fill="#FFFFFF" font-family="Pretendard, sans-serif" font-size="28" font-weight="900">230,000원 (추가 +6만/kg)</text>
+  <rect x="764" y="446" width="356" height="92" rx="18" fill="#0B0F17" stroke="#FBBF24" stroke-opacity="0.5"/>
+  <text x="790" y="484" fill="#FBBF24" font-family="Pretendard, sans-serif" font-size="18" font-weight="700">주식회사 이온랩 (평택 정련센터)</text>
+  <text x="790" y="518" fill="#FFFFFF" font-family="Pretendard, sans-serif" font-size="24" font-weight="800">표준 98.5~99.5% 골드 비드</text>
+</svg>

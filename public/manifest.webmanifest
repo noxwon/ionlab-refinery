@@ -1,0 +1,18 @@
+{
+  "name": "이온랩 리파이너리 (IONLAB REFINERY) - 소량 금 추출 위탁 정련 센터",
+  "short_name": "이온랩 정련소",
+  "description": "특허출원 제10-2026-0182129호 기반 1kg 소량 모재 1인 1배치 단독 습식 금 추출·위탁 정련 서비스. 금도금 핀·커넥터·IC 칩 고순도 순금 회수 전문.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0B0F17",
+  "theme_color": "#0B0F17",
+  "lang": "ko-KR",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

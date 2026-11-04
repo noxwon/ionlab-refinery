@@ -1,0 +1,11 @@
+node_modules/
+.next/
+out/
+.wrangler/
+.env
+.env.*
+.dev.vars
+*.tsbuildinfo
+*.log
+.DS_Store
+Thumbs.db
