@@ -668,7 +668,7 @@ export default function ClientTrackerView({
                       {(!activeOrder.actual_gold ||
                         Number(activeOrder.current_step || 0) < 3) && (
                         <p className="mt-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-200">
-                          ⚖️ <strong>정산 확정 안내:</strong> 현재 추출 전 단계로 표시된 정산액은 접수 시점 시뮬레이션 예상치입니다. <strong>실제 최종 정산 송금액은 STEP 03 공정 완료 후 정밀 실측된 순금 비드 중량(g)과 추출 당일의 KRX 금 시세</strong>를 적용하여 최종 확정됩니다.
+                          ⚖️ <strong>정산 확정 기준 및 매입가 안내:</strong> 현재 추출 전 단계로 표시된 정산액은 접수 시점 시뮬레이션 예상치입니다. <strong>실제 최종 정산 송금액은 STEP 03 공정 완료 후 정밀 실측된 순금 비드 중량(g)과 추출 당일의 [정련소 순금비드 매입 시세(KRX 공인 기준가의 97.5%)]</strong>를 적용하여 최종 확정됩니다. (※ STEP 01에서 선입금하신 작업비는 이중 차감하지 않고 금 매입대금 전액을 송금해 드립니다.)
                         </p>
                       )}
                     </div>

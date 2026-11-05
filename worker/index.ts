@@ -11,6 +11,7 @@ import {
   TrackType,
   PreprocessOption,
   TaxOptionType,
+  REFINERY_BUY_RATE,
 } from "../lib/refining-calc";
 
 export interface Env {
@@ -738,8 +739,13 @@ export default {
             ? "business_invoice"
             : "personal_withholding_33";
 
+        const grossPayoutBasis =
+          payload.settlementType === "cash_transfer"
+            ? serverEstimate.cashGoldValue
+            : serverEstimate.totalGoldValueV;
+
         const serverTax = calculateTaxBreakdown(
-          serverEstimate.netClientProfit,
+          grossPayoutBasis,
           taxOptionStr
         );
 
@@ -793,7 +799,7 @@ export default {
         const finalCashPayoutNum =
           payload.settlementType === "cash_transfer"
             ? serverTax.finalCashPayout
-            : serverEstimate.netClientProfit;
+            : serverEstimate.totalGoldValueV;
 
         // (C) Cloudflare D1 저장: 온라인 접수 직후에는 current_step = 0 (입금확인 및 모재 입고 계량 대기 상태)
         //     관리자가 입금 확인 + 실제 모재 측정 중량 입력 시 STEP 1이 완료됨!
@@ -1762,6 +1768,24 @@ export default {
               ? 1
               : Number(existingOrder.payment_confirmed || 0);
 
+        let nextWithholdingTax: number | null = null;
+        let nextFinalPayout: number | null = null;
+        if (
+          actualGoldGrams !== null &&
+          actualGoldGrams !== undefined &&
+          Number(actualGoldGrams) > 0
+        ) {
+          const goldPriceNum = Number(existingOrder.gold_price || 171020);
+          const buyPriceNum = Math.round(goldPriceNum * REFINERY_BUY_RATE);
+          const cashGross = Math.round(Number(actualGoldGrams) * buyPriceNum);
+          const taxOpt =
+            (existingOrder.tax_option as TaxOptionType) ||
+            "personal_withholding_33";
+          const taxCalc = calculateTaxBreakdown(cashGross, taxOpt);
+          nextWithholdingTax = taxCalc.withholdingTaxAmount;
+          nextFinalPayout = taxCalc.finalCashPayout;
+        }
+
         await env.DB.prepare(
           `UPDATE refinery_orders
            SET current_step = ?,
@@ -1769,7 +1793,9 @@ export default {
                is_cycle_locked = ?,
                payment_confirmed = ?,
                actual_weight = COALESCE(?, actual_weight),
-               actual_gold = COALESCE(?, actual_gold)
+               actual_gold = COALESCE(?, actual_gold),
+               withholding_tax_amount = COALESCE(?, withholding_tax_amount),
+               final_cash_payout = COALESCE(?, final_cash_payout)
            WHERE receipt_number = ?`
         )
           .bind(
@@ -1779,6 +1805,8 @@ export default {
             nextPaymentConfirmed,
             actualWeightKg,
             actualGoldGrams,
+            nextWithholdingTax,
+            nextFinalPayout,
             receiptNumber
           )
           .run();

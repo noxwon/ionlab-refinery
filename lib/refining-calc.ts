@@ -41,6 +41,8 @@ export interface UploadedPhoto {
   sizeLabel: string;
 }
 
+export const REFINERY_BUY_RATE = 0.975; // KRX 공인 기준시세 대비 1차 정련 순금비드(98.5~99.5%) 정련소 매입가율 97.5% (고객 팔 때 시세)
+
 export interface EstimateResult {
   track: TrackType;
   trackName: string;
@@ -52,18 +54,20 @@ export interface EstimateResult {
   purityLabel: string;
   expectedGold: number; // g (소수점 1자리 정밀 지원, 예: 8.4)
   goldPrice: number;
+  refineryBuyPrice: number; // 1g당 정련소 매입시세 (goldPrice * 0.975)
   baseCostA: number;
   preprocessCostB: number;
   chemicalCostC: number;
   standardTotal: number; // A + B
-  totalGoldValueV: number; // V
+  totalGoldValueV: number; // V (KRX 100% 기준 실물 순금 가치)
+  cashGoldValue: number; // 현금 정산 시 금 총 매입 평가액 (expectedGold * refineryBuyPrice)
   isHighYieldThresholdMet: boolean;
   highYieldThresholdGrams: number;
   highYieldRatePercent: number;
   ratioBasedCost: number; // (V * 0.10 or 0.12) + C + B
   isRatioApplied: boolean;
   finalWorkFee: number; // Math.max(A + B, ratioBasedCost)
-  netClientProfit: number; // V - finalWorkFee
+  netClientProfit: number; // V - finalWorkFee (실물 수령 시 의뢰인 순수익)
 }
 
 export interface OrderSubmissionPayload {
@@ -123,7 +127,7 @@ export function formatWeightDisplay(weightGrams: number): string {
 }
 
 export function calculateTaxBreakdown(
-  netClientProfit: number,
+  grossPayoutAmount: number,
   taxOption: TaxOptionType
 ): {
   taxOptionLabel: string;
@@ -131,16 +135,16 @@ export function calculateTaxBreakdown(
   withholdingTaxAmount: number;
   finalCashPayout: number;
 } {
-  const safeProfit = Math.max(0, Math.round(netClientProfit));
+  const safeGross = Math.max(0, Math.round(grossPayoutAmount));
   if (taxOption === "personal_withholding_33") {
     // 소득세 3% + 지방소득세 0.3% = 3.3% 원천징수 (10원 미만 절사 관행)
-    const withholdingTaxAmount = Math.floor((safeProfit * 0.033) / 10) * 10;
+    const withholdingTaxAmount = Math.floor((safeGross * 0.033) / 10) * 10;
     return {
       taxOptionLabel:
         "개인(사업소득 3.3% 원천징수 공제 후 법인 계좌이체 · 지급명세서 신고)",
       withholdingRatePercent: 3.3,
       withholdingTaxAmount,
-      finalCashPayout: safeProfit - withholdingTaxAmount,
+      finalCashPayout: safeGross - withholdingTaxAmount,
     };
   }
   if (taxOption === "personal_exempt_scrap") {
@@ -149,7 +153,7 @@ export function calculateTaxBreakdown(
         "개인(비사업자 일시 소장 스크랩 매각 · 매입확인서 및 신분증 지출증빙 확인 후 무공제 송금)",
       withholdingRatePercent: 0,
       withholdingTaxAmount: 0,
-      finalCashPayout: safeProfit,
+      finalCashPayout: safeGross,
     };
   }
   return {
@@ -157,7 +161,7 @@ export function calculateTaxBreakdown(
       "사업자(세금계산서 발행 / 금 스크랩 매입자납부특례 또는 임가공비 상계 정산)",
     withholdingRatePercent: 0,
     withholdingTaxAmount: 0,
-    finalCashPayout: safeProfit,
+    finalCashPayout: safeGross,
   };
 }
 
@@ -209,9 +213,13 @@ export function calculateRefiningEstimate(
     ? Math.round(weight * 20000)
     : Math.round(40000 + Math.max(0, weight - 1) * 30000);
 
-  // 5) 추출 금 총 가치 (V) - 0.1g 단위 정밀 반영
+  // 5) 추출 금 총 가치 (V) - 0.1g 단위 정밀 반영 (KRX 기준 도매 시세 100%)
   const cleanExpectedGold = Number(Number(expectedGold).toFixed(1));
   const totalGoldValueV = Math.round(cleanExpectedGold * goldPrice);
+
+  // 5-1) 정련소 실물 순금비드(98.5~99.5%) 매입 시세 및 매입 평가액 (고객 팔 때 시세, KRX의 97.5%)
+  const refineryBuyPrice = Math.round(goldPrice * REFINERY_BUY_RATE);
+  const cashGoldValue = Math.round(cleanExpectedGold * refineryBuyPrice);
 
   // 6) 고수율 수수료 비교
   const highYieldThresholdGrams = isPlating ? 10 : 15;
@@ -248,6 +256,8 @@ export function calculateRefiningEstimate(
     purityLabel,
     expectedGold: cleanExpectedGold,
     goldPrice,
+    refineryBuyPrice,
+    cashGoldValue,
     baseCostA,
     preprocessCostB,
     chemicalCostC,

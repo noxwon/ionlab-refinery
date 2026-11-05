@@ -373,7 +373,7 @@ export async function sendOrderNotificationEmail(
                 params.finalCashPayout || params.netClientProfit
               )}</strong></p>
               <div style="margin-top:8px;padding:8px 12px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);border-radius:8px;font-size:12px;color:#FDE68A;line-height:1.45;">
-                ⚖️ <strong>[정산 확정 기준 안내]</strong> 상기 정산 금액은 접수 시점 예상 시뮬레이션 금액입니다. <strong>실제 최종 정산 송금액은 STEP 03 공정 완료 후 전자저울로 정밀 실측된 실제 추출 순금량(g)과 정산 완료일 당일의 KRX 금 현물 시세를 적용하여 최종 확정</strong>되어 입금됩니다.
+                ⚖️ <strong>[정산 확정 기준 및 정련소 매입가 안내]</strong> 상기 정산 금액은 접수 시점 예상 시뮬레이션 금액입니다. <strong>실제 최종 정산 송금액은 STEP 03 공정 완료 후 전자저울로 정밀 실측된 실제 추출 순금량(g)과 정산 완료일 당일의 정련소 순금비드 매입시세(KRX 공인 기준가의 97.5%)를 적용하여 최종 확정</strong>되어 입금됩니다. (※ STEP 01에서 선입금하신 작업비는 이중 차감하지 않고, 추출된 순금 매입대금 전액을 세무 공제 후 투명하게 송금해 드립니다.)
               </div>`
         }
       </div>

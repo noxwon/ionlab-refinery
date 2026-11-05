@@ -323,10 +323,10 @@ export default function IonlabRefineryPage() {
     simGoldPrice,
   ]);
 
-  // 현금 정산 선택 시 법인 출금 세법 공제 및 세후 실입금액 계산
+  // 현금 정산 선택 시 정련소 매입가(KRX 97.5%) 기준 세법 공제 및 세후 실송금액 계산 (선입금 작업비 이중차감 배제)
   const formTaxBreakdown = useMemo(
-    () => calculateTaxBreakdown(formEstimate.netClientProfit, taxOption),
-    [formEstimate.netClientProfit, taxOption]
+    () => calculateTaxBreakdown(formEstimate.cashGoldValue, taxOption),
+    [formEstimate.cashGoldValue, taxOption]
   );
 
   // 의뢰인 성함/업체명과 입금계좌 예금주 명의 일치 여부 실시간 검증
@@ -1600,11 +1600,10 @@ export default function IonlabRefineryPage() {
                     ₩{formatKRW(simResult.netClientProfit)}
                   </div>
                   <p className="mt-1.5 text-xs text-slate-400">
-                    실물 골드 비드({simResult.expectedGold.toFixed(1)}g) 수령 후
-                    작업비만 결제하거나, 작업비 차감 후 현금 입금 선택 가능
+                    실물 순금 비드({simResult.expectedGold.toFixed(1)}g) 택배/방문 수령 또는 정련소 당일 매입가 기준 현금 계좌 정산 선택 가능
                   </p>
-                  <p className="mt-1 text-[11px] text-amber-200/80">
-                    ※ 현금 정산 시 실제 정산 송금액은 STEP 03 공정 완료일의 KRX 금 현물 시세 및 실제 추출 순금량으로 최종 확정 산출됩니다.
+                  <p className="mt-1 text-[11px] text-amber-200/90 leading-relaxed">
+                    ※ 현금 정산 시 실제 정산 송금액은 STEP 03 공정 완료일의 [정련소 순금비드 당일 매입 시세(KRX 공인 기준가의 97.5%)] 및 실제 추출 순금량으로 최종 확정 산출됩니다. (※ STEP 01에서 선입금하신 작업비는 이중 차감하지 않고 금 매입대금 전액을 송금해 드립니다.)
                   </p>
                 </div>
 
@@ -2452,10 +2451,10 @@ export default function IonlabRefineryPage() {
                     <div className="mt-3 grid grid-cols-1 gap-2 rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-3.5 text-xs sm:grid-cols-3">
                       <div>
                         <span className="text-[11px] text-slate-400">
-                          세전 예상 정산 순수익
+                          세전 예상 금 매입가액 (KRX 97.5%)
                         </span>
                         <p className="mt-0.5 font-mono text-sm font-bold text-white">
-                          ₩{formatKRW(formEstimate.netClientProfit)}
+                          ₩{formatKRW(formEstimate.cashGoldValue)}
                         </p>
                       </div>
                       <div>
@@ -2477,7 +2476,7 @@ export default function IonlabRefineryPage() {
                     </div>
 
                     <div className="mt-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 text-[11px] text-amber-200 leading-relaxed">
-                      ⚖️ <strong>정산 금액 확정 기준 안내:</strong> 상기 정산 금액은 접수 시점의 모재 예상치 기준 가계산된 시뮬레이션 금액입니다. <strong>실제 최종 정산 송금액은 STEP 03 공정 완료 후 정밀 전자저울로 실측된 실제 추출 순금량(g)과 정산 완료 당일의 KRX 금 시세를 적용하여 최종 확정</strong>되어 계좌로 송금됩니다.
+                      ⚖️ <strong>정산 금액 확정 기준 및 매입시세 안내:</strong> 상기 정산 금액은 접수 시점의 모재 예상치 기준 가계산된 시뮬레이션 금액입니다. <strong>실제 최종 정산 송금액은 STEP 03 공정 완료 후 정밀 전자저울로 실측된 실제 추출 순금량(g)과 정산 완료 당일의 [정련소 순금비드 매입 시세(KRX 공인 기준가의 97.5%)]를 적용하여 최종 확정</strong>되어 계좌로 송금됩니다. (※ STEP 01에서 선입금하신 작업비는 이중 차감하지 않고, 추출된 순금 매입대금 전액을 송금해 드립니다.)
                     </div>
 
                     <label className="mt-3 flex cursor-pointer items-center gap-2.5 rounded-xl border border-slate-800 bg-slate-900/70 px-3.5 py-2.5 text-xs text-slate-200">

@@ -484,6 +484,9 @@ export default function AdminDashboardView({
   const weightDiffGrams = measuredGramsNum - requestedGrams;
 
   // STEP 04 정산·출고 단계용 확정/예상 순금 기반 실시간 정산액 계산
+  // ※ 작업비는 STEP 01에서 이미 선입금 받았으므로, 현금 정산 송금액 산정 시 이중 차감하지 않고
+  //    소비자 매도(팔 때) 시세인 [정련소 매입가(KRX 기준가의 97.5%)]를 적용하여 매입대금을 송금합니다.
+  const REFINERY_BUY_RATE = 0.975;
   const isGoldConfirmed = Boolean(
     selectedOrder &&
       ((selectedOrder.actual_gold !== null &&
@@ -500,25 +503,30 @@ export default function AdminDashboardView({
         : Number(selectedOrder.expected_gold || 0)
     : 0;
   const settlementGoldPrice = Number(selectedOrder?.gold_price || 180000);
+  const settlementBuyPrice = Math.round(settlementGoldPrice * REFINERY_BUY_RATE); // 정련소 실물 순금비드 매입가 (97.5%)
   const settlementGrossValue = Math.round(
     settlementGoldGrams * settlementGoldPrice
-  );
+  ); // KRX 100% 기준 금 가치
+  const settlementCashGross = Math.round(
+    settlementGoldGrams * settlementBuyPrice
+  ); // 정련소 매입가 기준 세전 매입 평가액
   const settlementWorkFee = Number(selectedOrder?.final_work_fee || 0);
-  const settlementPreTaxNet = Math.max(
-    0,
-    settlementGrossValue - settlementWorkFee
-  );
+
   const isWithholding33Order =
     selectedOrder?.tax_option === "personal_withholding_33" ||
     (!selectedOrder?.tax_option &&
       selectedOrder?.settlement_type === "cash_transfer");
+
+  // 현금 정산 시 회사가 고객에게 송금하는 금액 산정 (선입금 작업비 이중차감 배제)
   const settlementWithholdingTax = isWithholding33Order
-    ? Math.floor((settlementPreTaxNet * 0.033) / 10) * 10
+    ? Math.floor((settlementCashGross * 0.033) / 10) * 10
     : 0;
   const settlementFinalCashPayout = Math.max(
     0,
-    settlementPreTaxNet - settlementWithholdingTax
+    settlementCashGross - settlementWithholdingTax
   );
+  // (참고) 고객의 최종 투자 순수익 = 세후 실송금액 - 선입금 작업비
+  const settlementNetClientProfit = settlementFinalCashPayout - settlementWorkFee;
 
   return (
     <div
@@ -1010,39 +1018,36 @@ export default function AdminDashboardView({
                             </div>
                             <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-2.5">
                               <span className="text-[11px] text-emerald-300">
-                                {selectedOrder.actual_gold !== null &&
-                                selectedOrder.actual_gold !== undefined &&
-                                Number(selectedOrder.actual_gold) > 0
+                                {isGoldConfirmed
                                   ? "원천징수 공제액 / 세후 확정 실송금액"
                                   : "예상 원천징수 공제 / 세후 예상 실송금액"}
                               </span>
                               <p className="mt-0.5 font-mono text-[11px] text-amber-300">
-                                {selectedOrder.actual_gold !== null &&
-                                selectedOrder.actual_gold !== undefined &&
-                                Number(selectedOrder.actual_gold) > 0
+                                {isGoldConfirmed
                                   ? "확정 공제세액: -₩"
                                   : "예상 공제세액: -₩"}
                                 {formatKRW(
-                                  Number(
-                                    selectedOrder.withholding_tax_amount || 0
-                                  )
+                                  isGoldConfirmed
+                                    ? settlementWithholdingTax
+                                    : Number(
+                                        selectedOrder.withholding_tax_amount || 0
+                                      )
                                 )}
                               </p>
                               <p className="font-mono text-sm font-black text-emerald-400">
-                                {selectedOrder.actual_gold !== null &&
-                                selectedOrder.actual_gold !== undefined &&
-                                Number(selectedOrder.actual_gold) > 0
+                                {isGoldConfirmed
                                   ? "확정 실송금: ₩"
                                   : "예상 실송금: ₩"}
                                 {formatKRW(
-                                  Number(
-                                    selectedOrder.final_cash_payout ||
-                                      selectedOrder.net_client_profit
-                                  )
+                                  isGoldConfirmed
+                                    ? settlementFinalCashPayout
+                                    : Number(
+                                        selectedOrder.final_cash_payout ||
+                                          selectedOrder.net_client_profit
+                                      )
                                 )}
                               </p>
-                              {(!selectedOrder.actual_gold ||
-                                Number(selectedOrder.actual_gold) <= 0) && (
+                              {!isGoldConfirmed && (
                                 <p className="mt-1 text-[10px] text-amber-200/90 font-sans">
                                   ※ 추출 전 접수시점 예상치 (STEP 03 실측 시 당일 시세로 최종 확정)
                                 </p>
@@ -1446,26 +1451,23 @@ export default function AdminDashboardView({
                                         ? `3) 실측 확정 금(${settlementGoldGrams}g) 정산액`
                                         : `3) 예상 금(${settlementGoldGrams}g) 정산액 (추출 실측 전 가계산)`}
                                     </span>
-                                    <span className="font-mono text-slate-400">
-                                      시세 ₩{formatKRW(settlementGoldPrice)}/g
+                                    <span className="font-mono text-[11px] text-slate-300">
+                                      매입시세: <strong className="text-amber-300">₩{formatKRW(settlementBuyPrice)}/g</strong>
+                                      <span className="text-[10px] text-slate-400"> (KRX 97.5%)</span>
                                     </span>
                                   </div>
                                   <div className="mt-1 space-y-0.5 text-[11px] text-slate-300">
                                     <div className="flex justify-between">
-                                      <span>
-                                        {isGoldConfirmed
-                                          ? "세전 순수익 (금가액-작업비):"
-                                          : "세전 예상 순수익 (가계산):"}
-                                      </span>
+                                      <span>세전 금 매입가액:</span>
                                       <span className="font-mono font-bold text-white">
-                                        ₩{formatKRW(settlementPreTaxNet)}
+                                        ₩{formatKRW(settlementCashGross)}
                                       </span>
                                     </div>
                                     <div className="flex justify-between text-amber-300">
                                       <span>
                                         {isWithholding33Order
                                           ? isGoldConfirmed
-                                            ? "3.3% 원천징수 공제:"
+                                            ? "3.3% 사업소득 원천징수 공제:"
                                             : "3.3% 원천징수 공제 (예상):"
                                           : isGoldConfirmed
                                             ? "원천징수 세액:"
@@ -1474,6 +1476,10 @@ export default function AdminDashboardView({
                                       <span className="font-mono font-bold">
                                         -₩{formatKRW(settlementWithholdingTax)}
                                       </span>
+                                    </div>
+                                    <div className="flex justify-between text-[10px] text-slate-400 pt-0.5">
+                                      <span>선입금 작업비 (기결제 확인):</span>
+                                      <span className="font-mono">₩{formatKRW(settlementWorkFee)} (선입금 완료)</span>
                                     </div>
                                   </div>
                                   <div className="mt-1.5 flex items-center justify-between border-t border-emerald-500/30 pt-1.5">
@@ -1486,11 +1492,15 @@ export default function AdminDashboardView({
                                       ₩{formatKRW(settlementFinalCashPayout)}
                                     </span>
                                   </div>
-                                  {!isGoldConfirmed && (
-                                    <p className="mt-1.5 rounded-lg border border-amber-500/30 bg-amber-950/30 px-2 py-1 text-[10px] text-amber-200/90 font-sans">
-                                      ※ STEP 03 공정의 순금 비드 실측 전 가계산 예상액입니다. 추출 당일 KRX 금 시세 및 전자저울 실측 중량에 따라 최종 확정 정산됩니다.
+                                  <div className="mt-1.5 rounded-lg border border-emerald-500/30 bg-emerald-950/40 px-2 py-1 text-[10px] text-slate-300">
+                                    <p className="text-emerald-300 font-bold">
+                                      💡 의뢰인 최종 실수익: ₩{formatKRW(settlementNetClientProfit)}
+                                      <span className="font-normal text-slate-300"> (실송금 ₩{formatKRW(settlementFinalCashPayout)} - 선입금 작업비 ₩{formatKRW(settlementWorkFee)})</span>
                                     </p>
-                                  )}
+                                    <p className="mt-0.5 text-slate-400 text-[9.5px]">
+                                      ※ 작업비는 STEP 01에서 이미 선입금 받았으므로 이중 차감하지 않고 금 매입대금 전액을 송금합니다. (매입시세: KRX 기준가의 97.5% 적용)
+                                    </p>
+                                  </div>
                                 </div>
                               </div>
 
