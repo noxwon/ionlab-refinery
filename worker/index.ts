@@ -1133,10 +1133,67 @@ export default {
             .toFixed(2)
         );
         const totalNetProfit = Math.round(
-          customerOrders.reduce(
-            (acc, r) => acc + Number(r.net_client_profit || 0),
-            0
-          )
+          customerOrders.reduce((acc, r) => {
+            const hasActual =
+              r.actual_gold !== null &&
+              r.actual_gold !== undefined &&
+              Number(r.actual_gold) > 0;
+            const gGrams = hasActual
+              ? Number(r.actual_gold)
+              : Number(r.expected_gold || 0);
+            const gPrice = Number(r.gold_price || 171020);
+            const workFee = Number(r.final_work_fee || 0);
+            if (r.settlement_type === "cash_transfer") {
+              const buyPrice = Math.round(gPrice * REFINERY_BUY_RATE);
+              const gross = Math.round(gGrams * buyPrice);
+              const taxOpt =
+                (r.tax_option as TaxOptionType) || "personal_withholding_33";
+              const taxCalc = calculateTaxBreakdown(gross, taxOpt);
+              return acc + (taxCalc.finalCashPayout - workFee);
+            }
+            return acc + (Math.round(gGrams * gPrice) - workFee);
+          }, 0)
+        );
+        const confirmedNetProfit = Math.round(
+          customerOrders.reduce((acc, r) => {
+            const hasActual =
+              r.actual_gold !== null &&
+              r.actual_gold !== undefined &&
+              Number(r.actual_gold) > 0;
+            if (!hasActual) return acc;
+            const gGrams = Number(r.actual_gold);
+            const gPrice = Number(r.gold_price || 171020);
+            const workFee = Number(r.final_work_fee || 0);
+            if (r.settlement_type === "cash_transfer") {
+              const buyPrice = Math.round(gPrice * REFINERY_BUY_RATE);
+              const gross = Math.round(gGrams * buyPrice);
+              const taxOpt =
+                (r.tax_option as TaxOptionType) || "personal_withholding_33";
+              const taxCalc = calculateTaxBreakdown(gross, taxOpt);
+              return acc + (taxCalc.finalCashPayout - workFee);
+            }
+            return acc + (Math.round(gGrams * gPrice) - workFee);
+          }, 0)
+        );
+        const confirmedCashPayout = Math.round(
+          customerOrders.reduce((acc, r) => {
+            const hasActual =
+              r.actual_gold !== null &&
+              r.actual_gold !== undefined &&
+              Number(r.actual_gold) > 0;
+            if (!hasActual) return acc;
+            const gGrams = Number(r.actual_gold);
+            const gPrice = Number(r.gold_price || 171020);
+            if (r.settlement_type === "cash_transfer") {
+              const buyPrice = Math.round(gPrice * REFINERY_BUY_RATE);
+              const gross = Math.round(gGrams * buyPrice);
+              const taxOpt =
+                (r.tax_option as TaxOptionType) || "personal_withholding_33";
+              const taxCalc = calculateTaxBreakdown(gross, taxOpt);
+              return acc + taxCalc.finalCashPayout;
+            }
+            return acc + Math.round(gGrams * gPrice);
+          }, 0)
         );
 
         const latestOrder = customerOrders[0];
@@ -1156,6 +1213,8 @@ export default {
               confirmedGoldGrams,
               totalGoldGrams,
               totalNetProfit,
+              confirmedNetProfit,
+              confirmedCashPayout,
             },
           }),
           {
@@ -1770,12 +1829,15 @@ export default {
 
         let nextWithholdingTax: number | null = null;
         let nextFinalPayout: number | null = null;
+        let nextTotalGoldValueV: number | null = null;
+        let nextNetClientProfit: number | null = null;
         if (
           actualGoldGrams !== null &&
           actualGoldGrams !== undefined &&
           Number(actualGoldGrams) > 0
         ) {
           const goldPriceNum = Number(existingOrder.gold_price || 171020);
+          const workFeeNum = Number(existingOrder.final_work_fee || 0);
           const buyPriceNum = Math.round(goldPriceNum * REFINERY_BUY_RATE);
           const cashGross = Math.round(Number(actualGoldGrams) * buyPriceNum);
           const taxOpt =
@@ -1784,6 +1846,13 @@ export default {
           const taxCalc = calculateTaxBreakdown(cashGross, taxOpt);
           nextWithholdingTax = taxCalc.withholdingTaxAmount;
           nextFinalPayout = taxCalc.finalCashPayout;
+          nextTotalGoldValueV = Math.round(
+            Number(actualGoldGrams) * goldPriceNum
+          );
+          nextNetClientProfit =
+            existingOrder.settlement_type === "cash_transfer"
+              ? nextFinalPayout - workFeeNum
+              : nextTotalGoldValueV - workFeeNum;
         }
 
         await env.DB.prepare(
@@ -1794,6 +1863,8 @@ export default {
                payment_confirmed = ?,
                actual_weight = COALESCE(?, actual_weight),
                actual_gold = COALESCE(?, actual_gold),
+               total_gold_value_v = COALESCE(?, total_gold_value_v),
+               net_client_profit = COALESCE(?, net_client_profit),
                withholding_tax_amount = COALESCE(?, withholding_tax_amount),
                final_cash_payout = COALESCE(?, final_cash_payout)
            WHERE receipt_number = ?`
@@ -1805,6 +1876,8 @@ export default {
             nextPaymentConfirmed,
             actualWeightKg,
             actualGoldGrams,
+            nextTotalGoldValueV,
+            nextNetClientProfit,
             nextWithholdingTax,
             nextFinalPayout,
             receiptNumber

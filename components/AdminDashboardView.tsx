@@ -27,6 +27,8 @@ import {
   FileCheck2,
   Truck,
   CreditCard,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import {
   OrderRecord,
@@ -35,7 +37,11 @@ import {
   deduplicateUrlArray,
   isVideoUrl,
 } from "./ClientTrackerView";
-import { formatKRW } from "@/lib/refining-calc";
+import {
+  formatKRW,
+  calculateRefiningEstimate,
+  TrackType,
+} from "@/lib/refining-calc";
 
 interface EnrichedAdminOrder extends OrderRecord {
   access_password?: string;
@@ -104,6 +110,8 @@ export default function AdminDashboardView({
   const [selectedReceipt, setSelectedReceipt] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [stepFilter, setStepFilter] = useState<number | "ALL">("ALL");
+  const [adminOrderPage, setAdminOrderPage] = useState<number>(1);
+  const ADMIN_ORDERS_PER_PAGE = 8;
 
   // 단계별 입력 상태 (1사이클 4단계 구조)
   const [editStep, setEditStep] = useState<number>(1);
@@ -477,11 +485,24 @@ export default function AdminDashboardView({
         selectedOrder.status === "COMPLETED")
   );
 
+  // 좌측 주문 목록 페이지네이션 (8건 단위)
+  const totalAdminPages = Math.max(
+    1,
+    Math.ceil(filteredOrders.length / ADMIN_ORDERS_PER_PAGE)
+  );
+  const safeAdminPage = Math.min(Math.max(1, adminOrderPage), totalAdminPages);
+  const pagedAdminOrders = filteredOrders.slice(
+    (safeAdminPage - 1) * ADMIN_ORDERS_PER_PAGE,
+    safeAdminPage * ADMIN_ORDERS_PER_PAGE
+  );
+
   const requestedGrams = selectedOrder
     ? Math.round(Number(selectedOrder.weight || 0) * 1000)
     : 0;
   const measuredGramsNum = Number(actualWeightGrams || 0);
   const weightDiffGrams = measuredGramsNum - requestedGrams;
+  const isWeightDiffSignificant =
+    measuredGramsNum > 0 && Math.abs(weightDiffGrams) > 100;
 
   // STEP 04 정산·출고 단계용 확정/예상 순금 기반 실시간 정산액 계산
   // ※ 작업비는 STEP 01에서 이미 선입금 받았으므로, 현금 정산 송금액 산정 시 이중 차감하지 않고
@@ -511,6 +532,31 @@ export default function AdminDashboardView({
     settlementGoldGrams * settlementBuyPrice
   ); // 정련소 매입가 기준 세전 매입 평가액
   const settlementWorkFee = Number(selectedOrder?.final_work_fee || 0);
+
+  // 모재 실측 중량이 신청 중량과 ±100g 초과로 차이 날 때의 실측 기준 정상 작업비 및 차액
+  const recalculatedWorkFee = (() => {
+    if (!selectedOrder || measuredGramsNum <= 0) return settlementWorkFee;
+    const trackType: TrackType =
+      selectedOrder.track === "ic" ||
+      (selectedOrder.track_name || "").includes("IC")
+        ? "ic"
+        : "plating";
+    const needsPrep =
+      selectedOrder.preprocess_option === "solder_removal" ||
+      selectedOrder.preprocess_option === "heatspreader_removal" ||
+      (selectedOrder.preprocess_label || "").includes("포함");
+    const est = calculateRefiningEstimate(
+      trackType,
+      measuredGramsNum,
+      needsPrep,
+      settlementGoldGrams,
+      settlementGoldPrice
+    );
+    return est.finalWorkFee;
+  })();
+  const workFeeDiffAmount = isWeightDiffSignificant
+    ? recalculatedWorkFee - settlementWorkFee
+    : 0; // 양수(+): 초과 입고로 인한 추가 작업비, 음수(-): 미달 입고로 인한 작업비 환급액
 
   const isWithholding33Order =
     selectedOrder?.tax_option === "personal_withholding_33" ||
@@ -689,37 +735,48 @@ export default function AdminDashboardView({
                     <input
                       type="text"
                       value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        setAdminOrderPage(1);
+                      }}
                       placeholder="고객명, 전화번호, 이메일, 접수번호 검색..."
                       className="w-full rounded-xl border border-slate-700 bg-slate-950 py-2.5 pr-3 pl-10 text-xs text-white placeholder:text-slate-500 focus:border-amber-400 focus:outline-none"
                     />
                   </div>
 
-                  <div className="flex flex-wrap gap-1.5">
-                    {(["ALL", 0, 1, 2, 3, 4] as const).map((st) => (
-                      <button
-                        key={String(st)}
-                        type="button"
-                        onClick={() => setStepFilter(st)}
-                        className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition ${
-                          stepFilter === st
-                            ? "bg-amber-400 text-slate-950"
-                            : "bg-slate-950 text-slate-400 hover:text-white"
-                        }`}
-                      >
-                        {st === "ALL"
-                          ? "전체"
-                          : st === 0
-                            ? "입고대기(0)"
-                            : `STEP 0${st}`}
-                      </button>
-                    ))}
+                  <div className="flex flex-wrap items-center justify-between gap-1.5">
+                    <div className="flex flex-wrap gap-1.5">
+                      {(["ALL", 0, 1, 2, 3, 4] as const).map((st) => (
+                        <button
+                          key={String(st)}
+                          type="button"
+                          onClick={() => {
+                            setStepFilter(st);
+                            setAdminOrderPage(1);
+                          }}
+                          className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition ${
+                            stepFilter === st
+                              ? "bg-amber-400 text-slate-950"
+                              : "bg-slate-950 text-slate-400 hover:text-white"
+                          }`}
+                        >
+                          {st === "ALL"
+                            ? "전체"
+                            : st === 0
+                              ? "입고대기(0)"
+                              : `STEP 0${st}`}
+                        </button>
+                      ))}
+                    </div>
+                    <span className="text-[11px] font-bold text-slate-400">
+                      총 {filteredOrders.length}건
+                    </span>
                   </div>
                 </div>
 
-                {/* 주문 카드 리스트 */}
+                {/* 주문 카드 리스트 (페이지당 8건 페이징) */}
                 <div className="mt-3 max-h-[680px] space-y-2.5 overflow-y-auto pr-1">
-                  {filteredOrders.map((ord) => {
+                  {pagedAdminOrders.map((ord) => {
                     const isSelected =
                       ord.receipt_number === selectedOrder?.receipt_number;
                     const curStep = Number(ord.current_step ?? 0);
@@ -810,6 +867,39 @@ export default function AdminDashboardView({
                       조건에 해당하는 주문 내역이 없습니다.
                     </div>
                   )}
+                </div>
+
+                {/* 좌측 주문 목록 하단 페이징 컨트롤 (페이지당 8건) */}
+                <div className="mt-3 flex items-center justify-between border-t border-slate-800 pt-3">
+                  <button
+                    type="button"
+                    disabled={safeAdminPage <= 1}
+                    onClick={() =>
+                      setAdminOrderPage((p) => Math.max(1, p - 1))
+                    }
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-[11px] font-bold text-slate-300 transition hover:border-amber-400 hover:text-amber-300 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" /> 이전
+                  </button>
+                  <span className="font-mono text-[11px] font-bold text-slate-300">
+                    <strong className="text-amber-300">{safeAdminPage}</strong>{" "}
+                    / {totalAdminPages} 페이지{" "}
+                    <span className="text-slate-500">
+                      ({ADMIN_ORDERS_PER_PAGE}건씩 표시)
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    disabled={safeAdminPage >= totalAdminPages}
+                    onClick={() =>
+                      setAdminOrderPage((p) =>
+                        Math.min(totalAdminPages, p + 1)
+                      )
+                    }
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-[11px] font-bold text-slate-300 transition hover:border-amber-400 hover:text-amber-300 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    다음 <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
                 </div>
               </div>
 
@@ -1245,20 +1335,83 @@ export default function AdminDashboardView({
                                 </span>
                               </div>
                               {measuredGramsNum > 0 && (
-                                <p className="mt-1 text-[11px] text-slate-300">
-                                  신청 대비 실측 편차:{" "}
-                                  <strong
-                                    className={
-                                      weightDiffGrams >= 0
-                                        ? "text-emerald-400"
-                                        : "text-amber-400"
-                                    }
-                                  >
-                                    {weightDiffGrams >= 0
-                                      ? `+${weightDiffGrams.toLocaleString()}g`
-                                      : `${weightDiffGrams.toLocaleString()}g`}
-                                  </strong>
-                                </p>
+                                <div className="mt-2 space-y-2">
+                                  <p className="text-[11px] text-slate-300">
+                                    신청 대비 실측 편차:{" "}
+                                    <strong
+                                      className={
+                                        weightDiffGrams >= 0
+                                          ? "text-emerald-400"
+                                          : "text-amber-400"
+                                      }
+                                    >
+                                      {weightDiffGrams >= 0
+                                        ? `+${weightDiffGrams.toLocaleString()}g (${(weightDiffGrams / 1000).toFixed(2)}kg 초과)`
+                                        : `${weightDiffGrams.toLocaleString()}g (${(Math.abs(weightDiffGrams) / 1000).toFixed(2)}kg 미달)`}
+                                    </strong>
+                                  </p>
+
+                                  {!isWeightDiffSignificant ? (
+                                    <div className="rounded-lg border border-slate-700/80 bg-slate-900/80 px-3 py-2 text-[11px] text-slate-300">
+                                      ✓ <strong>±100g 이내 일반 허용 오차 범위</strong>입니다. 선입금 작업비(₩{formatKRW(settlementWorkFee)}) 변동 없이 그대로 진행합니다.
+                                    </div>
+                                  ) : (
+                                    <div
+                                      className={`rounded-xl border p-3 text-[11px] leading-relaxed ${
+                                        workFeeDiffAmount > 0
+                                          ? "border-amber-500/40 bg-amber-950/30 text-amber-200"
+                                          : "border-cyan-500/40 bg-cyan-950/30 text-cyan-200"
+                                      }`}
+                                    >
+                                      <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <span className="font-extrabold">
+                                          {workFeeDiffAmount > 0
+                                            ? "⚠️ 실측 중량 초과 (+100g 초과) → 추가 작업비 발생"
+                                            : "💡 실측 중량 미달 (-100g 초과) → 초과 납부 작업비 환급 대상"}
+                                        </span>
+                                        <span className="rounded bg-slate-950/80 px-2 py-0.5 font-mono font-bold text-white">
+                                          실측({(measuredGramsNum / 1000).toFixed(2)}kg) 기준 작업비: ₩{formatKRW(recalculatedWorkFee)}
+                                        </span>
+                                      </div>
+                                      <p className="mt-1.5 text-slate-200">
+                                        • 기존 선입금 작업비({Number(selectedOrder.weight).toFixed(2)}kg 기준):{" "}
+                                        <strong>₩{formatKRW(settlementWorkFee)}</strong>
+                                        <br />• 실측 중량 대비 작업비 차액:{" "}
+                                        <strong
+                                          className={
+                                            workFeeDiffAmount > 0
+                                              ? "text-amber-300"
+                                              : "text-cyan-300"
+                                          }
+                                        >
+                                          {workFeeDiffAmount > 0
+                                            ? `+₩${formatKRW(workFeeDiffAmount)} (STEP 04 현금 정산금에서 차감 상계 또는 출고 전 추가 청구)`
+                                            : `-₩${formatKRW(Math.abs(workFeeDiffAmount))} (STEP 04 현금 정산금에 합산 환급 또는 계좌 환급, 최소 1kg 기본요금 보장)`}
+                                        </strong>
+                                      </p>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const diffKgStr = (
+                                            Math.abs(weightDiffGrams) / 1000
+                                          ).toFixed(2);
+                                          const noteText =
+                                            workFeeDiffAmount > 0
+                                              ? `[중량 오차 안내] 신청 중량(${Number(selectedOrder.weight).toFixed(2)}kg) 대비 실측 중량이 ${(measuredGramsNum / 1000).toFixed(3)}kg(+${diffKgStr}kg 초과)으로 계측되었습니다. 초과 물량에 대한 추가 약품·공정 작업비 ₩${formatKRW(workFeeDiffAmount)}(실측 기준 총 작업비 ₩${formatKRW(recalculatedWorkFee)})는 STEP 04 최종 정산 시 상계(차감) 또는 정산 반영됩니다.`
+                                              : `[중량 오차 안내] 신청 중량(${Number(selectedOrder.weight).toFixed(2)}kg) 대비 실측 중량이 ${(measuredGramsNum / 1000).toFixed(3)}kg(-${diffKgStr}kg 미달)으로 계측되었습니다. 선입금 작업비 중 과오납 차액 ₩${formatKRW(Math.abs(workFeeDiffAmount))}(실측 기준 총 작업비 ₩${formatKRW(recalculatedWorkFee)})은 STEP 04 최종 정산 시 합산 환급해 드립니다.`;
+                                          setLogDetail((prev) =>
+                                            prev
+                                              ? `${prev}\n\n${noteText}`
+                                              : noteText
+                                          );
+                                        }}
+                                        className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-slate-900/90 px-2.5 py-1.5 text-[11px] font-bold text-white transition hover:bg-slate-800"
+                                      >
+                                        ⚡ STEP 01 상세 코멘트에 중량 차액 정산 안내문 자동 삽입
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
                               )}
                             </div>
                           </div>
@@ -1481,6 +1634,20 @@ export default function AdminDashboardView({
                                       <span>선입금 작업비 (기결제 확인):</span>
                                       <span className="font-mono">₩{formatKRW(settlementWorkFee)} (선입금 완료)</span>
                                     </div>
+                                    {isWeightDiffSignificant && workFeeDiffAmount !== 0 && (
+                                      <div className="flex justify-between rounded bg-slate-950/80 px-1.5 py-1 text-[10px] font-bold">
+                                        <span className={workFeeDiffAmount > 0 ? "text-amber-300" : "text-cyan-300"}>
+                                          {workFeeDiffAmount > 0
+                                            ? "⚠️ 실측 중량 초과 추가 작업비 차감:"
+                                            : "💡 실측 중량 미달 작업비 차액 환급:"}
+                                        </span>
+                                        <span className={`font-mono ${workFeeDiffAmount > 0 ? "text-amber-300" : "text-cyan-300"}`}>
+                                          {workFeeDiffAmount > 0
+                                            ? `-₩${formatKRW(workFeeDiffAmount)} (상계 후 ₩${formatKRW(settlementFinalCashPayout - workFeeDiffAmount)})`
+                                            : `+₩${formatKRW(Math.abs(workFeeDiffAmount))} (합산 후 ₩${formatKRW(settlementFinalCashPayout + Math.abs(workFeeDiffAmount))})`}
+                                        </span>
+                                      </div>
+                                    )}
                                   </div>
                                   <div className="mt-1.5 flex items-center justify-between border-t border-emerald-500/30 pt-1.5">
                                     <span className="text-xs font-extrabold text-emerald-300">

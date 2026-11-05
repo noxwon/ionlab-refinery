@@ -16,13 +16,19 @@ import {
   History,
   Award,
   Sparkles,
+  ChevronLeft,
   ChevronRight,
   Layers,
   Scale,
   Video,
   Image as ImageIcon,
 } from "lucide-react";
-import { formatKRW } from "@/lib/refining-calc";
+import {
+  formatKRW,
+  REFINERY_BUY_RATE,
+  calculateRefiningEstimate,
+  TrackType,
+} from "@/lib/refining-calc";
 
 export interface OrderRecord {
   id?: number;
@@ -36,6 +42,7 @@ export interface OrderRecord {
   weight: number;
   actual_weight?: number | null;
   payment_confirmed?: number;
+  preprocess_option?: string;
   preprocess_label: string;
   purity_label: string;
   settlement_type: string;
@@ -85,6 +92,8 @@ interface CustomerSummary {
   confirmedGoldGrams: number;
   totalGoldGrams: number;
   totalNetProfit: number;
+  confirmedNetProfit?: number;
+  confirmedCashPayout?: number;
 }
 
 interface ClientTrackerViewProps {
@@ -158,6 +167,11 @@ export default function ClientTrackerView({
   >({});
   const [customerSummary, setCustomerSummary] =
     useState<CustomerSummary | null>(null);
+  const [orderStatusFilter, setOrderStatusFilter] = useState<
+    "ALL" | "ACTIVE" | "COMPLETED"
+  >("ALL");
+  const [orderPage, setOrderPage] = useState<number>(1);
+  const ORDERS_PER_PAGE = 4;
 
   const handleLookup = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -222,6 +236,133 @@ export default function ClientTrackerView({
   const activeLogs: OrderLogRecord[] = activeOrder
     ? logsByReceipt[activeOrder.receipt_number] || []
     : [];
+
+  // 주문 목록 필터링 및 페이지네이션 (다량 주문 고객을 위한 4건 단위 페이징 + 필터)
+  const filteredClientOrders = allOrders.filter((ord) => {
+    const step = Number(ord.current_step ?? 0);
+    const isDone = step >= 4 || ord.status === "COMPLETED";
+    if (orderStatusFilter === "ACTIVE") return !isDone;
+    if (orderStatusFilter === "COMPLETED") return isDone;
+    return true;
+  });
+  const totalOrderPages = Math.max(
+    1,
+    Math.ceil(filteredClientOrders.length / ORDERS_PER_PAGE)
+  );
+  const safeOrderPage = Math.min(Math.max(1, orderPage), totalOrderPages);
+  const pagedClientOrders = filteredClientOrders.slice(
+    (safeOrderPage - 1) * ORDERS_PER_PAGE,
+    safeOrderPage * ORDERS_PER_PAGE
+  );
+
+  // 선택된 주문의 실시간 정산액 및 모재 중량 편차 계산 (정련소 매입가 97.5% & 선입금 작업비 이중차감 배제)
+  const isOrderGoldConfirmed = Boolean(
+    activeOrder &&
+      activeOrder.actual_gold !== null &&
+      activeOrder.actual_gold !== undefined &&
+      Number(activeOrder.actual_gold) > 0
+  );
+  const orderGoldGrams = activeOrder
+    ? isOrderGoldConfirmed
+      ? Number(activeOrder.actual_gold)
+      : Number(activeOrder.expected_gold || 0)
+    : 0;
+  const orderGoldPrice = Number(activeOrder?.gold_price || 171020);
+  const orderBuyPrice = Math.round(orderGoldPrice * REFINERY_BUY_RATE);
+  const orderCashGross = Math.round(orderGoldGrams * orderBuyPrice);
+  const orderPhysicalValue = Math.round(orderGoldGrams * orderGoldPrice);
+  const orderWorkFee = Number(activeOrder?.final_work_fee || 0);
+  const isOrderWithholding33 =
+    activeOrder?.tax_option === "personal_withholding_33" ||
+    (!activeOrder?.tax_option &&
+      activeOrder?.settlement_type === "cash_transfer");
+  const orderWithholdingTax = isOrderWithholding33
+    ? Math.floor((orderCashGross * 0.033) / 10) * 10
+    : 0;
+  const orderFinalCashPayout = Math.max(0, orderCashGross - orderWithholdingTax);
+  const orderNetProfit =
+    activeOrder?.settlement_type === "cash_transfer"
+      ? orderFinalCashPayout - orderWorkFee
+      : orderPhysicalValue - orderWorkFee;
+
+  // 모재 입고 실측 중량 편차 및 작업비 가감 산출 (±100g 허용 오차 초과 시)
+  const requestedWeightGrams = activeOrder
+    ? Math.round(Number(activeOrder.weight || 0) * 1000)
+    : 0;
+  const measuredWeightGrams =
+    activeOrder &&
+    activeOrder.actual_weight !== null &&
+    activeOrder.actual_weight !== undefined
+      ? Math.round(Number(activeOrder.actual_weight) * 1000)
+      : null;
+  const weightDiffGrams =
+    measuredWeightGrams !== null
+      ? measuredWeightGrams - requestedWeightGrams
+      : 0;
+  const isWeightDiffSignificant =
+    measuredWeightGrams !== null && Math.abs(weightDiffGrams) > 100;
+  const recalculatedWorkFee = (() => {
+    if (!activeOrder || measuredWeightGrams === null) return orderWorkFee;
+    const trackType: TrackType =
+      activeOrder.track === "ic" ||
+      (activeOrder.track_name || "").includes("IC")
+        ? "ic"
+        : "plating";
+    const needsPrep =
+      activeOrder.preprocess_option === "solder_removal" ||
+      activeOrder.preprocess_option === "heatspreader_removal" ||
+      (activeOrder.preprocess_label || "").includes("포함");
+    const est = calculateRefiningEstimate(
+      trackType,
+      measuredWeightGrams,
+      needsPrep,
+      orderGoldGrams,
+      orderGoldPrice
+    );
+    return est.finalWorkFee;
+  })();
+  const workFeeDiffAmount = isWeightDiffSignificant
+    ? recalculatedWorkFee - orderWorkFee
+    : 0; // 양수(+): 초과 입고로 인한 추가 작업비, 음수(-): 미달 입고로 인한 작업비 환급액
+
+  // 고객 전체 주문 기준 확정 실송금액 및 확정 순수익 실시간 집계
+  const cumulativeConfirmedPayout = allOrders.reduce((sum, ord) => {
+    const hasActual =
+      ord.actual_gold !== null &&
+      ord.actual_gold !== undefined &&
+      Number(ord.actual_gold) > 0;
+    if (!hasActual) return sum;
+    const g = Number(ord.actual_gold);
+    const p = Number(ord.gold_price || 171020);
+    if (ord.settlement_type === "cash_transfer") {
+      const bp = Math.round(p * REFINERY_BUY_RATE);
+      const gross = Math.round(g * bp);
+      const w33 =
+        ord.tax_option === "personal_withholding_33" || !ord.tax_option;
+      const tax = w33 ? Math.floor((gross * 0.033) / 10) * 10 : 0;
+      return sum + (gross - tax);
+    }
+    return sum + Math.round(g * p);
+  }, 0);
+  const cumulativeConfirmedNetProfit = allOrders.reduce((sum, ord) => {
+    const hasActual =
+      ord.actual_gold !== null &&
+      ord.actual_gold !== undefined &&
+      Number(ord.actual_gold) > 0;
+    if (!hasActual) return sum;
+    const g = Number(ord.actual_gold);
+    const p = Number(ord.gold_price || 171020);
+    const fee = Number(ord.final_work_fee || 0);
+    if (ord.settlement_type === "cash_transfer") {
+      const bp = Math.round(p * REFINERY_BUY_RATE);
+      const gross = Math.round(g * bp);
+      const w33 =
+        ord.tax_option === "personal_withholding_33" || !ord.tax_option;
+      const tax = w33 ? Math.floor((gross * 0.033) / 10) * 10 : 0;
+      return sum + (gross - tax - fee);
+    }
+    return sum + (Math.round(g * p) - fee);
+  }, 0);
 
   const parsedClientPhotos: string[] = (() => {
     if (!activeOrder?.photo_urls_json) return [];
@@ -406,15 +547,17 @@ export default function ClientTrackerView({
                     </p>
                   </div>
 
-                  <div className="rounded-xl border border-slate-800/90 bg-slate-950/70 p-3.5">
-                    <p className="text-[11px] font-medium text-slate-400">
-                      누적 정산 순수익
+                  <div className="rounded-xl border border-emerald-500/30 bg-slate-950/70 p-3.5">
+                    <p className="text-[11px] font-bold text-emerald-300">
+                      누적 확정 정산 실수령액
                     </p>
                     <p className="mt-1 text-base font-black text-emerald-400 sm:text-lg">
-                      ₩{formatKRW(customerSummary.totalNetProfit)}
+                      ₩{formatKRW(cumulativeConfirmedPayout)}
                     </p>
-                    <p className="mt-0.5 text-[11px] text-slate-500">
-                      수수료 차감 후 의뢰인 귀속분
+                    <p className="mt-0.5 text-[10.5px] text-slate-400">
+                      {cumulativeConfirmedPayout > 0
+                        ? `확정 순수익 ₩${formatKRW(cumulativeConfirmedNetProfit)} (작업비 제외)`
+                        : "STEP 03 순금 실측 후 확정 합산"}
                     </p>
                   </div>
 
@@ -432,28 +575,110 @@ export default function ClientTrackerView({
                 </div>
               </div>
 
-              {/* [B] 전체 주문 내역 선택 리스트 */}
+              {/* [B] 전체 주문 내역 선택 리스트 (필터 + 4건 단위 페이징 지원) */}
               <div>
-                <h3 className="mb-2.5 flex items-center gap-2 text-xs font-bold tracking-wider text-slate-300 uppercase">
-                  <History className="h-4 w-4 text-cyan-400" />
-                  <span>
-                    나의 전체 주문 내역 ({allOrders.length}건 · 클릭하여 주문별
-                    진행상태 확인)
-                  </span>
-                </h3>
+                <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="flex items-center gap-2 text-xs font-bold tracking-wider text-slate-300 uppercase">
+                    <History className="h-4 w-4 text-cyan-400" />
+                    <span>
+                      나의 전체 주문 내역 ({filteredClientOrders.length}건 · 클릭하여 주문별 진행상태 확인)
+                    </span>
+                  </h3>
 
-                <div className="flex gap-2.5 overflow-x-auto pb-2">
-                  {allOrders.map((ord, idx) => {
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* 상태 필터 */}
+                    <div className="flex rounded-lg border border-slate-800 bg-slate-950 p-0.5 text-[11px]">
+                      {(
+                        [
+                          { key: "ALL", label: `전체(${allOrders.length})` },
+                          {
+                            key: "ACTIVE",
+                            label: `진행중(${
+                              allOrders.filter(
+                                (o) =>
+                                  Number(o.current_step ?? 0) < 4 &&
+                                  o.status !== "COMPLETED"
+                              ).length
+                            })`,
+                          },
+                          {
+                            key: "COMPLETED",
+                            label: `완료(${
+                              allOrders.filter(
+                                (o) =>
+                                  Number(o.current_step ?? 0) >= 4 ||
+                                  o.status === "COMPLETED"
+                              ).length
+                            })`,
+                          },
+                        ] as const
+                      ).map((tab) => (
+                        <button
+                          key={tab.key}
+                          type="button"
+                          onClick={() => {
+                            setOrderStatusFilter(tab.key);
+                            setOrderPage(1);
+                          }}
+                          className={`rounded-md px-2 py-0.5 font-bold transition ${
+                            orderStatusFilter === tab.key
+                              ? "bg-amber-400 text-slate-950"
+                              : "text-slate-400 hover:text-white"
+                          }`}
+                        >
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* 페이지네이션 컨트롤 (4건 초과 시 활성) */}
+                    {totalOrderPages > 1 && (
+                      <div className="flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-950 px-1.5 py-0.5 text-[11px]">
+                        <button
+                          type="button"
+                          disabled={safeOrderPage <= 1}
+                          onClick={() =>
+                            setOrderPage((p) => Math.max(1, p - 1))
+                          }
+                          className="inline-flex h-5 w-5 items-center justify-center rounded text-slate-300 hover:bg-slate-800 disabled:opacity-30"
+                        >
+                          <ChevronLeft className="h-3.5 w-3.5" />
+                        </button>
+                        <span className="px-1 font-mono font-bold text-amber-300">
+                          {safeOrderPage} / {totalOrderPages}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={safeOrderPage >= totalOrderPages}
+                          onClick={() =>
+                            setOrderPage((p) =>
+                              Math.min(totalOrderPages, p + 1)
+                            )
+                          }
+                          className="inline-flex h-5 w-5 items-center justify-center rounded text-slate-300 hover:bg-slate-800 disabled:opacity-30"
+                        >
+                          <ChevronRight className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+                  {pagedClientOrders.map((ord) => {
                     const isSelected =
                       ord.receipt_number === activeOrder.receipt_number;
                     const step = Number(ord.current_step ?? 0);
                     const isDone = step >= 4 || ord.status === "COMPLETED";
+                    const orderIdx = allOrders.findIndex(
+                      (o) => o.receipt_number === ord.receipt_number
+                    );
                     return (
                       <button
                         key={ord.receipt_number}
                         type="button"
                         onClick={() => setSelectedReceipt(ord.receipt_number)}
-                        className={`group flex min-w-[235px] shrink-0 flex-col justify-between rounded-2xl border p-3.5 text-left transition ${
+                        className={`group flex flex-col justify-between rounded-2xl border p-3.5 text-left transition ${
                           isSelected
                             ? "border-amber-400 bg-amber-500/15 shadow-md shadow-amber-500/10"
                             : "border-slate-800 bg-slate-900/70 hover:border-slate-700"
@@ -494,7 +719,7 @@ export default function ClientTrackerView({
                               : `예상 금: ${ord.expected_gold}g`}
                           </span>
                           <span className="inline-flex items-center text-amber-400">
-                            #{allOrders.length - idx}회차
+                            #{allOrders.length - (orderIdx >= 0 ? orderIdx : 0)}회차
                             <ChevronRight className="h-3 w-3" />
                           </span>
                         </div>
@@ -554,6 +779,9 @@ export default function ClientTrackerView({
                       ).toLocaleString()}
                       g)
                     </p>
+                    <p className="mt-0.5 text-[10px] text-slate-500">
+                      선입금 작업비: ₩{formatKRW(orderWorkFee)}
+                    </p>
                   </div>
 
                   <div className="rounded-xl border border-cyan-500/40 bg-cyan-950/20 p-3.5">
@@ -565,13 +793,34 @@ export default function ClientTrackerView({
                     </div>
                     {activeOrder.actual_weight !== null &&
                     activeOrder.actual_weight !== undefined ? (
-                      <p className="mt-1 font-mono text-sm font-extrabold text-cyan-300">
-                        {Number(activeOrder.actual_weight).toFixed(3)} kg (
-                        {Math.round(
-                          Number(activeOrder.actual_weight) * 1000
-                        ).toLocaleString()}
-                        g)
-                      </p>
+                      <>
+                        <p className="mt-1 font-mono text-sm font-extrabold text-cyan-300">
+                          {Number(activeOrder.actual_weight).toFixed(3)} kg (
+                          {Math.round(
+                            Number(activeOrder.actual_weight) * 1000
+                          ).toLocaleString()}
+                          g)
+                        </p>
+                        <p className="mt-0.5 text-[10px] text-slate-300">
+                          {isWeightDiffSignificant ? (
+                            weightDiffGrams > 0 ? (
+                              <span className="text-amber-300 font-bold">
+                                +{weightDiffGrams.toLocaleString()}g 초과 (추가작업비 +₩
+                                {formatKRW(workFeeDiffAmount)})
+                              </span>
+                            ) : (
+                              <span className="text-emerald-300 font-bold">
+                                {weightDiffGrams.toLocaleString()}g 미달 (차액 ₩
+                                {formatKRW(Math.abs(workFeeDiffAmount))} 환급반영)
+                              </span>
+                            )
+                          ) : (
+                            <span className="text-slate-400">
+                              ✓ 신청 중량 일치 (허용오차 내)
+                            </span>
+                          )}
+                        </p>
+                      </>
                     ) : (
                       <p className="mt-1 text-xs font-semibold text-slate-400">
                         입고 후 전자저울 실측 예정
@@ -587,19 +836,41 @@ export default function ClientTrackerView({
                       <Coins className="h-3.5 w-3.5 text-amber-400" />
                     </div>
                     <p className="mt-1 font-mono text-sm font-extrabold text-amber-300">
-                      {activeOrder.actual_gold !== null &&
-                      activeOrder.actual_gold !== undefined
+                      {isOrderGoldConfirmed
                         ? `확정 ${Number(activeOrder.actual_gold).toFixed(2)} g`
                         : `예상 약 ${activeOrder.expected_gold} g`}
                     </p>
+                    <p className="mt-0.5 text-[10px] text-amber-200/80">
+                      {isOrderGoldConfirmed
+                        ? "STEP 03 정밀 저울 실측 완료"
+                        : "추출 전 시뮬레이션 예상치"}
+                    </p>
                   </div>
 
-                  <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-3.5">
+                  <div className="rounded-xl border border-emerald-500/40 bg-emerald-950/25 p-3.5">
                     <p className="text-[11px] font-bold text-emerald-300">
-                      ④ 의뢰인 정산 순수익
+                      {activeOrder.settlement_type === "cash_transfer"
+                        ? isOrderGoldConfirmed
+                          ? "④ 확정 세후 실송금액"
+                          : "④ 예상 세후 실송금액 (실측전)"
+                        : isOrderGoldConfirmed
+                          ? "④ 확정 순금 평가가치"
+                          : "④ 예상 순금 평가가치 (실측전)"}
                     </p>
-                    <p className="mt-1 font-mono text-sm font-extrabold text-emerald-300">
-                      ₩{formatKRW(activeOrder.net_client_profit)}
+                    <p className="mt-1 font-mono text-sm font-extrabold text-emerald-400">
+                      {isOrderGoldConfirmed ? "₩" : "예상 ₩"}
+                      {formatKRW(
+                        activeOrder.settlement_type === "cash_transfer"
+                          ? orderFinalCashPayout
+                          : orderPhysicalValue
+                      )}
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-slate-300">
+                      {isOrderGoldConfirmed ? "실수익: " : "예상 실수익: "}
+                      <strong className="text-emerald-300">
+                        ₩{formatKRW(orderNetProfit)}
+                      </strong>{" "}
+                      <span className="text-slate-400">(작업비 제외)</span>
                     </p>
                   </div>
                 </div>
@@ -633,42 +904,60 @@ export default function ClientTrackerView({
                           : ""}
                       </p>
                       <p className="text-slate-300">
+                        • <strong>적용 매입시세 (고객 매도 시세):</strong>{" "}
+                        <span className="font-mono font-bold text-amber-300">
+                          ₩{formatKRW(orderBuyPrice)}/g
+                        </span>{" "}
+                        <span className="text-slate-400">
+                          (KRX 기준시세 ₩{formatKRW(orderGoldPrice)}/g의 97.5% 정련소 순금비드 매입가)
+                        </span>
+                      </p>
+                      <p className="text-slate-300">
                         •{" "}
                         <strong>
-                          {activeOrder.actual_gold !== null &&
-                          activeOrder.actual_gold !== undefined &&
-                          Number(activeOrder.current_step || 0) >= 3
-                            ? "확정 공제 세액 및 최종 실송금액:"
-                            : "예상 공제 세액 및 예상 실송금액:"}
+                          {isOrderGoldConfirmed
+                            ? "확정 정산 산출 내역:"
+                            : "예상 정산 산출 내역 (추출 전 가계산):"}
                         </strong>{" "}
-                        {activeOrder.actual_gold !== null &&
-                        activeOrder.actual_gold !== undefined &&
-                        Number(activeOrder.current_step || 0) >= 3
+                        {isOrderGoldConfirmed ? "세전 매입가액 " : "예상 매입가액 "}
+                        <span className="font-mono font-semibold text-white">
+                          ₩{formatKRW(orderCashGross)}
+                        </span>{" "}
+                        -{" "}
+                        {isOrderGoldConfirmed
                           ? "원천징수 공제 "
                           : "예상 원천징수 공제 "}
                         <span className="font-mono font-semibold text-amber-300">
-                          ₩{formatKRW(Number(activeOrder.withholding_tax_amount || 0))}
+                          ₩{formatKRW(orderWithholdingTax)}
                         </span>{" "}
                         ➔{" "}
-                        {activeOrder.actual_gold !== null &&
-                        activeOrder.actual_gold !== undefined &&
-                        Number(activeOrder.current_step || 0) >= 3
-                          ? "확정 실송금 "
-                          : "예상 실송금 "}
+                        {isOrderGoldConfirmed ? "확정 실송금액 " : "예상 실송금액 "}
                         <span className="font-mono font-extrabold text-emerald-400">
-                          ₩
-                          {formatKRW(
-                            Number(
-                              activeOrder.final_cash_payout ||
-                                activeOrder.net_client_profit
-                            )
-                          )}
+                          ₩{formatKRW(orderFinalCashPayout)}
                         </span>
                       </p>
-                      {(!activeOrder.actual_gold ||
-                        Number(activeOrder.current_step || 0) < 3) && (
+                      <div className="mt-1.5 rounded-lg border border-emerald-500/30 bg-emerald-950/30 px-3 py-2 text-[11px] text-slate-200">
+                        💡 <strong>의뢰인 최종 투자 손익 요약:</strong>{" "}
+                        {isOrderGoldConfirmed ? "확정 실송금액" : "예상 실송금액"}(
+                        <strong className="text-emerald-300">
+                          ₩{formatKRW(orderFinalCashPayout)}
+                        </strong>
+                        ) - STEP 01 선입금 작업비(
+                        <strong className="text-slate-300">
+                          ₩{formatKRW(orderWorkFee)}
+                        </strong>
+                        ) ={" "}
+                        <strong className="text-amber-300">
+                          {isOrderGoldConfirmed ? "최종 순수익 " : "예상 순수익 "}₩
+                          {formatKRW(orderNetProfit)}
+                        </strong>
+                        <span className="block mt-0.5 text-[10.5px] text-slate-400">
+                          ※ 작업비는 STEP 01에서 이미 선입금하셨으므로, 정산 송금 시 작업비를 이중으로 차감하지 않고 순금 매입대금 전액(세후 ₩{formatKRW(orderFinalCashPayout)})을 입금해 드립니다.
+                        </span>
+                      </div>
+                      {!isOrderGoldConfirmed && (
                         <p className="mt-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-200">
-                          ⚖️ <strong>정산 확정 기준 및 매입가 안내:</strong> 현재 추출 전 단계로 표시된 정산액은 접수 시점 시뮬레이션 예상치입니다. <strong>실제 최종 정산 송금액은 STEP 03 공정 완료 후 정밀 실측된 순금 비드 중량(g)과 추출 당일의 [정련소 순금비드 매입 시세(KRX 공인 기준가의 97.5%)]</strong>를 적용하여 최종 확정됩니다. (※ STEP 01에서 선입금하신 작업비는 이중 차감하지 않고 금 매입대금 전액을 송금해 드립니다.)
+                          ⚖️ <strong>정산 확정 기준 및 매입가 안내:</strong> 현재 추출 전 단계로 표시된 정산액은 접수 시점 시뮬레이션 예상치입니다. <strong>실제 최종 정산 송금액은 STEP 03 공정 완료 후 정밀 실측된 순금 비드 중량(g)과 추출 당일의 [정련소 순금비드 매입 시세(KRX 공인 기준가의 97.5%)]</strong>를 적용하여 최종 확정됩니다.
                         </p>
                       )}
                     </div>
