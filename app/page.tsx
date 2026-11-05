@@ -1582,11 +1582,16 @@ export default function IonlabRefineryPage() {
 
                 {/* 의뢰인 최종 순수익 박스 */}
                 <div className="mt-6 rounded-2xl border border-amber-400/40 bg-slate-950/90 p-5 shadow-inner">
-                  <div className="text-xs font-bold text-amber-300">
-                    의뢰인 최종 수령액 (예상 순수익)
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-amber-300">
+                      의뢰인 최종 예상 수령액 (추출 전 가상 시뮬레이션)
+                    </span>
+                    <span className="rounded bg-amber-500/20 px-2 py-0.5 text-[10px] font-extrabold text-amber-300">
+                      추출 당일 시세로 최종 확정
+                    </span>
                   </div>
                   <div
-                    className={`mt-1 text-2xl font-black sm:text-3xl ${
+                    className={`mt-1.5 text-2xl font-black sm:text-3xl ${
                       simResult.netClientProfit >= 0
                         ? "text-emerald-400"
                         : "text-rose-400"
@@ -1597,6 +1602,9 @@ export default function IonlabRefineryPage() {
                   <p className="mt-1.5 text-xs text-slate-400">
                     실물 골드 비드({simResult.expectedGold.toFixed(1)}g) 수령 후
                     작업비만 결제하거나, 작업비 차감 후 현금 입금 선택 가능
+                  </p>
+                  <p className="mt-1 text-[11px] text-amber-200/80">
+                    ※ 현금 정산 시 실제 정산 송금액은 STEP 03 공정 완료일의 KRX 금 현물 시세 및 실제 추출 순금량으로 최종 확정 산출됩니다.
                   </p>
                 </div>
 
@@ -2452,8 +2460,7 @@ export default function IonlabRefineryPage() {
                       </div>
                       <div>
                         <span className="text-[11px] text-slate-400">
-                          원천징수 세금공제 ({formTaxBreakdown.withholdingRatePercent}
-                          %)
+                          원천징수 공제 (예상 {formTaxBreakdown.withholdingRatePercent}%)
                         </span>
                         <p className="mt-0.5 font-mono text-sm font-bold text-amber-300">
                           -₩{formatKRW(formTaxBreakdown.withholdingTaxAmount)}
@@ -2461,12 +2468,16 @@ export default function IonlabRefineryPage() {
                       </div>
                       <div>
                         <span className="text-[11px] font-bold text-emerald-300">
-                          세후 최종 실입금 예정액
+                          세후 예상 실송금액
                         </span>
                         <p className="mt-0.5 font-mono text-base font-black text-emerald-400">
                           ₩{formatKRW(formTaxBreakdown.finalCashPayout)}
                         </p>
                       </div>
+                    </div>
+
+                    <div className="mt-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 text-[11px] text-amber-200 leading-relaxed">
+                      ⚖️ <strong>정산 금액 확정 기준 안내:</strong> 상기 정산 금액은 접수 시점의 모재 예상치 기준 가계산된 시뮬레이션 금액입니다. <strong>실제 최종 정산 송금액은 STEP 03 공정 완료 후 정밀 전자저울로 실측된 실제 추출 순금량(g)과 정산 완료 당일의 KRX 금 시세를 적용하여 최종 확정</strong>되어 계좌로 송금됩니다.
                     </div>
 
                     <label className="mt-3 flex cursor-pointer items-center gap-2.5 rounded-xl border border-slate-800 bg-slate-900/70 px-3.5 py-2.5 text-xs text-slate-200">

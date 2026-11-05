@@ -484,6 +484,13 @@ export default function AdminDashboardView({
   const weightDiffGrams = measuredGramsNum - requestedGrams;
 
   // STEP 04 정산·출고 단계용 확정/예상 순금 기반 실시간 정산액 계산
+  const isGoldConfirmed = Boolean(
+    selectedOrder &&
+      ((selectedOrder.actual_gold !== null &&
+        selectedOrder.actual_gold !== undefined &&
+        Number(selectedOrder.actual_gold) > 0) ||
+        (editActualGold.trim() !== "" && Number(editActualGold) > 0))
+  );
   const settlementGoldGrams = selectedOrder
     ? selectedOrder.actual_gold !== null &&
       selectedOrder.actual_gold !== undefined
@@ -1003,10 +1010,18 @@ export default function AdminDashboardView({
                             </div>
                             <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-2.5">
                               <span className="text-[11px] text-emerald-300">
-                                원천징수 공제액 / 세후 실송금액
+                                {selectedOrder.actual_gold !== null &&
+                                selectedOrder.actual_gold !== undefined &&
+                                Number(selectedOrder.actual_gold) > 0
+                                  ? "원천징수 공제액 / 세후 확정 실송금액"
+                                  : "예상 원천징수 공제 / 세후 예상 실송금액"}
                               </span>
                               <p className="mt-0.5 font-mono text-[11px] text-amber-300">
-                                공제 세액: -₩
+                                {selectedOrder.actual_gold !== null &&
+                                selectedOrder.actual_gold !== undefined &&
+                                Number(selectedOrder.actual_gold) > 0
+                                  ? "확정 공제세액: -₩"
+                                  : "예상 공제세액: -₩"}
                                 {formatKRW(
                                   Number(
                                     selectedOrder.withholding_tax_amount || 0
@@ -1014,7 +1029,11 @@ export default function AdminDashboardView({
                                 )}
                               </p>
                               <p className="font-mono text-sm font-black text-emerald-400">
-                                실송금: ₩
+                                {selectedOrder.actual_gold !== null &&
+                                selectedOrder.actual_gold !== undefined &&
+                                Number(selectedOrder.actual_gold) > 0
+                                  ? "확정 실송금: ₩"
+                                  : "예상 실송금: ₩"}
                                 {formatKRW(
                                   Number(
                                     selectedOrder.final_cash_payout ||
@@ -1022,6 +1041,12 @@ export default function AdminDashboardView({
                                   )
                                 )}
                               </p>
+                              {(!selectedOrder.actual_gold ||
+                                Number(selectedOrder.actual_gold) <= 0) && (
+                                <p className="mt-1 text-[10px] text-amber-200/90 font-sans">
+                                  ※ 추출 전 접수시점 예상치 (STEP 03 실측 시 당일 시세로 최종 확정)
+                                </p>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1290,7 +1315,10 @@ export default function AdminDashboardView({
                                   <CreditCard className="h-4 w-4 text-emerald-400" />
                                   <span>
                                     [STEP 04 현금 정산·송금 필수 검수] 입금 계좌 ·
-                                    세무사 원천징수 신고 정보 · 확정 실송금액
+                                    세무사 원천징수 신고 정보 ·{" "}
+                                    {isGoldConfirmed
+                                      ? "확정 실송금액"
+                                      : "예상 실송금액 (추출 실측 전)"}
                                   </span>
                                 </div>
                                 <span
@@ -1414,7 +1442,9 @@ export default function AdminDashboardView({
                                 <div className="rounded-xl border border-emerald-500/40 bg-emerald-950/30 p-3">
                                   <div className="flex items-center justify-between text-[11px]">
                                     <span className="font-bold text-emerald-200">
-                                      3) 확정 금({settlementGoldGrams}g) 정산액
+                                      {isGoldConfirmed
+                                        ? `3) 실측 확정 금(${settlementGoldGrams}g) 정산액`
+                                        : `3) 예상 금(${settlementGoldGrams}g) 정산액 (추출 실측 전 가계산)`}
                                     </span>
                                     <span className="font-mono text-slate-400">
                                       시세 ₩{formatKRW(settlementGoldPrice)}/g
@@ -1422,7 +1452,11 @@ export default function AdminDashboardView({
                                   </div>
                                   <div className="mt-1 space-y-0.5 text-[11px] text-slate-300">
                                     <div className="flex justify-between">
-                                      <span>세전 순수익 (금가액-작업비):</span>
+                                      <span>
+                                        {isGoldConfirmed
+                                          ? "세전 순수익 (금가액-작업비):"
+                                          : "세전 예상 순수익 (가계산):"}
+                                      </span>
                                       <span className="font-mono font-bold text-white">
                                         ₩{formatKRW(settlementPreTaxNet)}
                                       </span>
@@ -1430,8 +1464,12 @@ export default function AdminDashboardView({
                                     <div className="flex justify-between text-amber-300">
                                       <span>
                                         {isWithholding33Order
-                                          ? "3.3% 원천징수 공제:"
-                                          : "원천징수 세액:"}
+                                          ? isGoldConfirmed
+                                            ? "3.3% 원천징수 공제:"
+                                            : "3.3% 원천징수 공제 (예상):"
+                                          : isGoldConfirmed
+                                            ? "원천징수 세액:"
+                                            : "원천징수 세액 (예상):"}
                                       </span>
                                       <span className="font-mono font-bold">
                                         -₩{formatKRW(settlementWithholdingTax)}
@@ -1440,12 +1478,19 @@ export default function AdminDashboardView({
                                   </div>
                                   <div className="mt-1.5 flex items-center justify-between border-t border-emerald-500/30 pt-1.5">
                                     <span className="text-xs font-extrabold text-emerald-300">
-                                      최종 이체 실지급액
+                                      {isGoldConfirmed
+                                        ? "최종 이체 확정 실지급액"
+                                        : "이체 예상 실지급액 (실측 전)"}
                                     </span>
                                     <span className="font-mono text-base font-black text-emerald-400">
                                       ₩{formatKRW(settlementFinalCashPayout)}
                                     </span>
                                   </div>
+                                  {!isGoldConfirmed && (
+                                    <p className="mt-1.5 rounded-lg border border-amber-500/30 bg-amber-950/30 px-2 py-1 text-[10px] text-amber-200/90 font-sans">
+                                      ※ STEP 03 공정의 순금 비드 실측 전 가계산 예상액입니다. 추출 당일 KRX 금 시세 및 전자저울 실측 중량에 따라 최종 확정 정산됩니다.
+                                    </p>
+                                  )}
                                 </div>
                               </div>
 
@@ -1462,14 +1507,16 @@ export default function AdminDashboardView({
                                     const taxDesc = isWithholding33Order
                                       ? `3.3% 사업소득 원천징수(₩${formatKRW(settlementWithholdingTax)}) 공제 후`
                                       : `${selectedOrder.tax_option_label || "세법 기준"} 적용 후`;
+                                    const goldLabel = isGoldConfirmed ? "확정 금" : "예상 금";
+                                    const payoutLabel = isGoldConfirmed ? "최종 실지급액" : "예상 실지급액";
                                     setLogTitle(
                                       "현금 정산 계좌이체 송금 완료 (정련 1사이클 최종 마감)"
                                     );
                                     setMeasuredValue(
-                                      `실지급액 ₩${formatKRW(settlementFinalCashPayout)} 송금 완료 (확정 금 ${settlementGoldGrams}g)`
+                                      `${payoutLabel} ₩${formatKRW(settlementFinalCashPayout)} 송금 완료 (${goldLabel} ${settlementGoldGrams}g)`
                                     );
                                     setLogDetail(
-                                      `확정 추출 순금 ${settlementGoldGrams}g에 대해 ${taxDesc} 최종 실지급액 ₩${formatKRW(settlementFinalCashPayout)}을 고객 지정 계좌[${bankInfo}]로 이체 완료하여 정련 1사이클이 최종 마감되었습니다.`
+                                      `${goldLabel} 추출 순금 ${settlementGoldGrams}g에 대해 ${taxDesc} ${payoutLabel} ₩${formatKRW(settlementFinalCashPayout)}을 고객 지정 계좌[${bankInfo}]로 이체 완료하여 정련 1사이클이 최종 마감되었습니다.`
                                     );
                                   }}
                                   className="rounded-xl border border-emerald-400/50 bg-emerald-500/20 px-3.5 py-2 text-xs font-extrabold text-emerald-200 hover:bg-emerald-500/30"
@@ -1531,7 +1578,10 @@ export default function AdminDashboardView({
                                       )}
                                   </div>
                                   <p className="mt-1 text-xs font-extrabold text-amber-300">
-                                    출고 순금 비드 확정 중량:{" "}
+                                    출고 순금 비드{" "}
+                                    {isGoldConfirmed
+                                      ? "확정 중량:"
+                                      : "예상 중량 (추출 실측 전):"}{" "}
                                     {settlementGoldGrams}g (순도 98.5~99.5%)
                                   </p>
                                   {selectedOrder.delivery_method === "visit" ? (

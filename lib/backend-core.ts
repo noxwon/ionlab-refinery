@@ -367,16 +367,19 @@ export async function sendOrderNotificationEmail(
                   ? ` (사업자번호: ${safeBusinessNumber})`
                   : ""
               }</p>
-              <p style="margin:4px 0;font-size:14px;">• <strong>공제 세액 / 세후 실입금액:</strong> 원천징수 ₩${formatNum(
+              <p style="margin:4px 0;font-size:14px;">• <strong>예상 공제 세액 / 예상 세후 실송금액:</strong> 예상 원천징수 ₩${formatNum(
                 params.withholdingTaxAmount || 0
-              )} / <strong style="color:#34D399;">실송금 ₩${formatNum(
+              )} / <strong style="color:#34D399;">예상 실송금 ₩${formatNum(
                 params.finalCashPayout || params.netClientProfit
-              )}</strong></p>`
+              )}</strong></p>
+              <div style="margin-top:8px;padding:8px 12px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);border-radius:8px;font-size:12px;color:#FDE68A;line-height:1.45;">
+                ⚖️ <strong>[정산 확정 기준 안내]</strong> 상기 정산 금액은 접수 시점 예상 시뮬레이션 금액입니다. <strong>실제 최종 정산 송금액은 STEP 03 공정 완료 후 전자저울로 정밀 실측된 실제 추출 순금량(g)과 정산 완료일 당일의 KRX 금 현물 시세를 적용하여 최종 확정</strong>되어 입금됩니다.
+              </div>`
         }
       </div>
 
       <div style="background:#0F172A;border:1px solid #1E293B;border-radius:12px;padding:16px;margin-bottom:16px;">
-        <h3 style="margin:0 0 12px 0;color:#FBBF24;font-size:15px;">2. 작업 조건 및 견적 시뮬레이션</h3>
+        <h3 style="margin:0 0 12px 0;color:#FBBF24;font-size:15px;">2. 작업 조건 및 견적 시뮬레이션 (추출 전 예상치)</h3>
         <p style="margin:4px 0;font-size:14px;">• <strong>선택 트랙:</strong> ${safeTrackName}</p>
         <p style="margin:4px 0;font-size:14px;">• <strong>의뢰 중량:</strong> ${
           params.weight
@@ -404,6 +407,9 @@ export async function sendOrderNotificationEmail(
         <p style="margin:4px 0;font-size:15px;">• <strong>의뢰인 예상 순수익:</strong> <strong style="color:#34D399;">₩${formatNum(
           params.netClientProfit
         )}</strong></p>
+        <p style="margin:8px 0 0 0;font-size:11px;color:#94A3B8;">
+          ※ 추출 금 가치 및 예상 순수익은 접수 시점 시뮬레이션 추정치이며, 실제 추출 완료일 당일 KRX 금 시세 및 실제 추출 순금량으로 최종 확정 산정됩니다.
+        </p>
       </div>
 
       <div style="background:#0F172A;border:1px solid #1E293B;border-radius:12px;padding:16px;margin-bottom:16px;">

@@ -633,11 +633,28 @@ export default function ClientTrackerView({
                           : ""}
                       </p>
                       <p className="text-slate-300">
-                        • <strong>공제 세액 및 세후 실입금액:</strong> 원천징수 공제{" "}
+                        •{" "}
+                        <strong>
+                          {activeOrder.actual_gold !== null &&
+                          activeOrder.actual_gold !== undefined &&
+                          Number(activeOrder.current_step || 0) >= 3
+                            ? "확정 공제 세액 및 최종 실송금액:"
+                            : "예상 공제 세액 및 예상 실송금액:"}
+                        </strong>{" "}
+                        {activeOrder.actual_gold !== null &&
+                        activeOrder.actual_gold !== undefined &&
+                        Number(activeOrder.current_step || 0) >= 3
+                          ? "원천징수 공제 "
+                          : "예상 원천징수 공제 "}
                         <span className="font-mono font-semibold text-amber-300">
                           ₩{formatKRW(Number(activeOrder.withholding_tax_amount || 0))}
                         </span>{" "}
-                        ➔ 세후 실송금 예정액{" "}
+                        ➔{" "}
+                        {activeOrder.actual_gold !== null &&
+                        activeOrder.actual_gold !== undefined &&
+                        Number(activeOrder.current_step || 0) >= 3
+                          ? "확정 실송금 "
+                          : "예상 실송금 "}
                         <span className="font-mono font-extrabold text-emerald-400">
                           ₩
                           {formatKRW(
@@ -648,6 +665,12 @@ export default function ClientTrackerView({
                           )}
                         </span>
                       </p>
+                      {(!activeOrder.actual_gold ||
+                        Number(activeOrder.current_step || 0) < 3) && (
+                        <p className="mt-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-200">
+                          ⚖️ <strong>정산 확정 안내:</strong> 현재 추출 전 단계로 표시된 정산액은 접수 시점 시뮬레이션 예상치입니다. <strong>실제 최종 정산 송금액은 STEP 03 공정 완료 후 정밀 실측된 순금 비드 중량(g)과 추출 당일의 KRX 금 시세</strong>를 적용하여 최종 확정됩니다.
+                        </p>
+                      )}
                     </div>
                   ) : (
                     <div className="space-y-1">

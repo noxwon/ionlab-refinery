@@ -51,12 +51,13 @@ export default function ReceiptModal({
             } (예금주: ${data.accountHolder || data.clientName})`,
             `• 명의 일치 확인: 의뢰인 성함과 입금계좌 예금주 일치 확인 완료`,
             `• 법인 출금 세법 구분: ${data.taxOptionLabel || "-"}`,
-            `• 원천징수 공제 세액: ₩${formatKRW(
+            `• 예상 원천징수 공제세액: ₩${formatKRW(
               data.withholdingTaxAmount || 0
             )}`,
-            `• 세후 실입금 예정액: ₩${formatKRW(
+            `• 세후 예상 실송금액: ₩${formatKRW(
               data.finalCashPayout ?? data.estimate.netClientProfit
-            )}`,
+            )} (추출 당일 시세 및 실측 중량 기준 최종 확정)`,
+            `• 정산 안내: 실제 최종 정산 송금액은 STEP 03 공정 완료 후 정밀 실측된 순금량(g)과 정산 완료일 당일 KRX 금 시세로 최종 확정됩니다.`,
           ];
 
     return [
@@ -457,9 +458,9 @@ export default function ReceiptModal({
                     • 세법 적용: {receiptData.taxOptionLabel}
                   </div>
                   <div className="mt-0.5 font-bold text-emerald-300">
-                    • 원천징수 세액: -₩
+                    • 예상 원천징수 세액: -₩
                     {formatKRW(receiptData.withholdingTaxAmount || 0)} ➔ 세후
-                    실입금 예정액:{" "}
+                    예상 실송금액:{" "}
                     <span className="text-amber-300">
                       ₩
                       {formatKRW(
@@ -467,6 +468,9 @@ export default function ReceiptModal({
                           receiptData.estimate.netClientProfit
                       )}
                     </span>
+                  </div>
+                  <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-200">
+                    ※ 상기 정산액은 접수 시점 시뮬레이션 예상치이며, 실제 최종 정산 송금액은 <strong>STEP 03 공정 완료 후 실측된 실제 추출 순금량 및 추출 당일의 KRX 금 현물 시세</strong>로 최종 확정됩니다.
                   </div>
                 </div>
               ) : (
