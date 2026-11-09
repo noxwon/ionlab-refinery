@@ -2719,15 +2719,15 @@ export default function IonlabRefineryPage() {
               </p>
               <address className="mt-4 space-y-1 not-italic text-slate-400">
                 <p>
-                  • 대표이사: 박서진 &nbsp;|&nbsp; 사업자등록번호: 272-87-04029
+                  • 대표이사: 원홍식 &nbsp;|&nbsp; 사업자등록번호: 272-87-04029
                 </p>
                 <p>
                   • 정련센터 소재지: 경기도 평택시 고덕면 도시지원1길 116, 208호
                   (평택 G1지식산업센터)
                 </p>
                 <p>
-                  • 고객상담 및 입고문의: 010-9761-9985 &nbsp;|&nbsp; 이메일:
-                  contact@ionlab.kr
+                  • 고객상담 및 입고문의 : 010 5798 0188 &nbsp;|&nbsp; 이메일 :
+                  techplay.blog@gmail.com
                 </p>
                 <p>
                   • 핵심 기술: 특허출원 제10-2026-0182129호 (선택적 금 회수 및

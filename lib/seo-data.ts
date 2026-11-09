@@ -108,13 +108,13 @@ export const SEO_JSON_LD = {
       logo: `${SITE_URL}/icon.svg`,
       image: `${SITE_URL}/og-image.svg`,
       description: SEO_DESCRIPTION,
-      telephone: "+82-10-9761-9985",
-      email: "contact@ionlab.kr",
+      telephone: "+82-10-5798-0188",
+      email: "techplay.blog@gmail.com",
       priceRange: "₩130,000 - ₩500,000",
       taxID: "272-87-04029",
       founder: {
         "@type": "Person",
-        name: "박서진",
+        name: "원홍식",
       },
       address: {
         "@type": "PostalAddress",
