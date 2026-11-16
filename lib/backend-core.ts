@@ -501,3 +501,691 @@ export async function sendOrderNotificationEmail(
     };
   }
 }
+
+// ============================================================================
+// 알리고 (Aligo) 카카오 알림톡 연동 모듈 (@ionlab / UN_8291 ~ UN_8301)
+// ============================================================================
+
+export type AligoTemplateCode =
+  | "UN_8291" // 위탁정련 접수완료 및 입금안내
+  | "UN_8292" // 선입금 작업비 입금확인 안내
+  | "UN_8293" // STEP01 모재입고 및 실측계량 완료
+  | "UN_8294" // STEP02 습식침출 및 환원공정 안내
+  | "UN_8296" // STEP03 순금비드 추출 및 계량완료
+  | "UN_8298" // STEP04 최종정산 및 출고마감 안내
+  | "UN_8299" // 입고모재 중량오차 작업비 정산안내
+  | "UN_8300" // 현금정산 세무신고 증빙서류 요청
+  | "UN_8301"; // 관리자용 신규 위탁정련 접수알림
+
+export interface AligoEnvConfig {
+  apiKey?: string;
+  userId?: string;
+  senderKey?: string;
+  senderPhone?: string;
+  proxyUrl?: string;
+}
+
+export interface AligoTemplateDefinition {
+  code: AligoTemplateCode;
+  name: string;
+  subject: string;
+  content: string;
+  buttonName: string;
+  buttonUrlTemplate: string;
+}
+
+export const ALIGO_TEMPLATE_MAP: Record<
+  AligoTemplateCode,
+  AligoTemplateDefinition
+> = {
+  UN_8291: {
+    code: "UN_8291",
+    name: "위탁정련 접수완료 및 입금안내",
+    subject: "[이온랩] 위탁 정련 접수 및 입금 안내",
+    content: `[이온랩 리파이너리] 위탁 정련 접수 및 입금 안내
+
+안녕하세요, #{고객명} 고객님.
+주식회사 이온랩에 위탁 정련을 신청해 주셔서 감사합니다.
+아래 안내에 따라 작업비 선입금 및 모재 발송을 진행해 주시면 입고 즉시 STEP 01 공정이 시작됩니다.
+
+■ 접수 및 조회 정보
+□ 접수번호 : #{접수번호}
+□ 의뢰품목 : #{모재트랙명} (신청 #{신청중량}kg)
+□ 정산방식 : #{정산방식}
+□ 조회 비밀번호 : #{조회비밀번호}
+
+■ 작업비 선입금 계좌 안내
+□ 입금은행 : #{입금은행}
+□ 계좌번호 : #{입금계좌번호}
+□ 예금주명 : 주식회사 이온랩
+□ 선입금 작업비 : #{선입금작업비}원
+
+■ 모재 보내실 곳 (택배 또는 방문)
+□ 주소 : 경기도 평택시 고덕면 도시지원1길 116, 208호 (평택 G1지식산업센터) 주식회사 이온랩
+□ 연락처 : 010-5798-0188
+
+※ 보이스피싱 및 금융사고 예방을 위해 당사 입금계좌는 알림톡과 이메일로만 개별 안내됩니다.
+※ 접수 시점의 시뮬레이션 수율 및 예상 정산금은 참고용 예상치이며, 최종 정산은 STEP 03 추출 실측 순금량(g)과 정산일 당일 정련소 매입시세(KRX 기준가의 97.5%)로 확정됩니다.`,
+    buttonName: "실시간 작업로그 조회",
+    buttonUrlTemplate: "https://#{조회링크}",
+  },
+  UN_8292: {
+    code: "UN_8292",
+    name: "선입금 작업비 입금확인 안내",
+    subject: "[이온랩] 작업비 선입금 확인 완료 안내",
+    content: `[이온랩 리파이너리] 작업비 선입금 확인 완료 안내
+
+안녕하세요, #{고객명} 고객님.
+신청하신 위탁 정련 건의 작업비 선입금이 정상 확인되었습니다.
+
+■ 입금 확인 내역
+□ 접수번호 : #{접수번호}
+□ 의뢰품목 : #{모재트랙명} (신청 #{신청중량}kg)
+□ 입금확인 금액 : #{선입금작업비}원
+□ 현재상태 : 입금 확인 완료 (모재 입고 및 실측 대기)
+
+■ 모재 발송 안내 (미발송 시 참고)
+□ 입고처 : 경기도 평택시 고덕면 도시지원1길 116, 208호 주식회사 이온랩 (010-5798-0188)
+
+모재가 정련실에 도착하면 전자저울 실측 계량(STEP 01) 후 사진과 함께 다시 알림톡을 보내드립니다.`,
+    buttonName: "실시간 작업로그 조회",
+    buttonUrlTemplate: "https://#{조회링크}",
+  },
+  UN_8293: {
+    code: "UN_8293",
+    name: "STEP01 모재입고 및 실측계량 완료",
+    subject: "[이온랩] STEP 01 모재 입고 및 실측 계량 완료",
+    content: `[이온랩 리파이너리] STEP 01 모재 입고 및 실측 계량 완료
+
+안녕하세요, #{고객명} 고객님.
+보내주신 모재가 평택 정련센터에 안전하게 입고되어 전자저울 정밀 실측이 완료되었습니다.
+
+■ STEP 01 입고 실측 결과
+□ 접수번호 : #{접수번호}
+□ 의뢰품목 : #{모재트랙명}
+□ 고객 신청 중량 : #{신청중량}kg
+□ 정련실 실측 중량 : #{실측중량}kg (#{중량편차안내})
+□ 작업비 정산 구분 : #{작업비변동 안내}
+□ 현장 담당자 코멘트 : #{단계코멘트}
+
+고객님의 모재는 타 물량과 섞이지 않는 1인 1배치 단독 공정으로 즉시 투입됩니다.
+하단 버튼을 누르시면 전자저울 실측 인증 사진을 직접 확인하실 수 있습니다.`,
+    buttonName: "STEP 01 실측사진 보기",
+    buttonUrlTemplate: "https://#{조회링크}",
+  },
+  UN_8294: {
+    code: "UN_8294",
+    name: "STEP02 습식침출 및 환원공정 안내",
+    subject: "[이온랩] STEP 02 정밀 습식 침출 및 환원 공정 안내",
+    content: `[이온랩 리파이너리] STEP 02 정밀 습식 침출 및 환원 공정 안내
+
+안녕하세요, #{고객명} 고객님.
+현재 고객님의 모재(1인 1배치 단독 반응조)에 대한 STEP 02 습식 정련 공정이 진행 중입니다.
+
+■ STEP 02 공정 진행 현황
+□ 접수번호 : #{접수번호}
+□ 의뢰품목 : #{모재트랙명} (실측 #{실측중량}kg)
+□ 현재단계 : STEP 02 습식 침출·다중 여과 및 선택적 금 환원
+□ 공정요약 : #{핵심계측배지}
+□ 상세내용 : #{단계코멘트}
+
+침출 및 환원 반응이 완료되는 대로 고온 용융을 거쳐 순금 비드(Gold Button)를 추출하고 STEP 03 확정 계량 결과를 안내해 드리겠습니다.`,
+    buttonName: "STEP 02 공정로그 보기",
+    buttonUrlTemplate: "https://#{조회링크}",
+  },
+  UN_8296: {
+    code: "UN_8296",
+    name: "STEP03 순금비드 추출 및 계량완료",
+    subject: "[이온랩] STEP 03 순금 비드 추출 및 확정 계량 완료",
+    content: `[이온랩 리파이너리] STEP 03 순금 비드 추출 및 확정 계량 완료 안내
+
+안녕하세요, #{고객명} 고객님.
+의뢰하신 모재의 정밀 습식 정련 및 고온 용융 작업이 완료되어 최종 추출된 순금 비드(Gold Button) 확정 중량을 안내해 드립니다.
+
+■ STEP 03 최종 순금 추출 결과
+□ 접수번호 : #{접수번호}
+□ 의뢰품목 : #{모재트랙명} (실측 #{실측중량}kg)
+□ 최종 확정 순금 추출량 : #{확정순금중량}g (순도 98.5%~99.5% 골드 비드)
+□ 고객 누적 확정 금 추출량 : 총 #{누적확정금중량}g
+□ 상세내용 : #{단계코멘트}
+
+■ 다음 단계 (STEP 04 최종 정산·출고) 안내
+□ 선택하신 정산방식 : #{정산방식}
+• 현금 정산 선택 시 : 정산일 당일 정련소 매입시세(KRX 기준가의 97.5%)를 적용하여 세후 확정 실송금액을 계좌이체해 드립니다. (선입금 작업비 이중 차감 없음)
+• 실물 수령 선택 시 : 우체국 안심소포(보험등기) 발송 또는 평택 정련실 방문 수령으로 출고됩니다.`,
+    buttonName: "추출 순금 사진·정산액 확인",
+    buttonUrlTemplate: "https://#{조회링크}",
+  },
+  UN_8298: {
+    code: "UN_8298",
+    name: "STEP04 최종정산 및 출고마감 안내",
+    subject: "[이온랩] STEP 04 최종 정산 및 출고 마감 완료",
+    content: `[이온랩 리파이너리] STEP 04 최종 정산 및 출고 마감 완료 안내
+
+안녕하세요, #{고객명} 고객님.
+의뢰하신 위탁 정련 건의 모든 공정과 최종 정산(출고)이 완료되어 1사이클이 공식 마감되었습니다.
+
+■ STEP 04 최종 정산 및 출고 명세
+□ 접수번호 : #{접수번호}
+□ 확정 순금 추출량 : #{확정순금중량}g
+□ 정산/출고 구분 : #{정산방식}
+□ 적용 시세 및 세무 구분 : #{적용시세및세무내역}
+□ 최종 정산/출고 결과 : #{최종정산출고결과}
+□ 담당자 마감 코멘트 : #{단계코멘트}
+
+소중한 모재를 주식회사 이온랩에 맡겨주셔서 진심으로 감사드립니다.
+전용 트래커 페이지에서 전 공정(STEP 01~04) 기록과 이체확인증/송장 증빙을 언제든 다시 열람하실 수 있습니다.`,
+    buttonName: "최종 정산서 및 증빙 열람",
+    buttonUrlTemplate: "https://#{조회링크}",
+  },
+  UN_8299: {
+    code: "UN_8299",
+    name: "입고모재 중량오차 작업비 정산안내",
+    subject: "[이온랩] 입고 모재 실측 중량 차이 정산 안내",
+    content: `[이온랩 리파이너리] 입고 모재 실측 중량 차이에 따른 작업비 정산 안내
+
+안녕하세요, #{고객명} 고객님.
+입고된 모재를 정밀 전자저울로 실측한 결과, 신청 중량 대비 일반 허용 오차(±100g)를 초과하는 중량 차이가 확인되어 정산 기준을 안내해 드립니다.
+
+■ 신청 중량 대비 실측 내역
+□ 접수번호 : #{접수번호}
+□ 고객 신청 중량 : #{신청중량}kg (선입금 작업비 #{선입금작업비}원)
+□ 정련실 실측 중량 : #{실측중량}kg (편차 #{중량편차그램})
+□ 실측 중량 기준 재산정 작업비 : #{실측기준작업비}원
+□ 작업비 차액 및 처리방식 : #{차액처리안내}
+
+※ 중량 초과분(+100g 초과)에 대한 추가 작업비는 STEP 04 최종 정산금에서 차감(상계)되며, 중량 미달분(-100g 초과, 최소 1kg 기본요금 보장)에 대한 과오납 작업비 차액은 STEP 04 최종 정산금에 합산하여 환급해 드립니다.`,
+    buttonName: "실측 계량 사진 확인하기",
+    buttonUrlTemplate: "https://#{조회링크}",
+  },
+  UN_8300: {
+    code: "UN_8300",
+    name: "현금정산 세무신고 증빙서류 요청",
+    subject: "[이온랩] 현금 정산 송금을 위한 세무 신고 서류 제출 안내",
+    content: `[이온랩 리파이너리] 현금 정산 송금을 위한 세무 신고 서류 제출 안내
+
+안녕하세요, #{고객명} 고객님.
+의뢰하신 모재(#{접수번호})의 순금 추출(#{확정순금중량}g)이 완료되어 현금 정산 계좌이체를 준비 중입니다.
+
+법인 계좌 출금 및 세무사 지급명세서(원천징수/지출증빙) 신고를 위해 아래 서류를 제출해 주시기 바랍니다.
+
+■ 제출 요청 내역
+□ 접수번호 : #{접수번호}
+□ 정산 예정 계좌 : #{입금은행} #{입금계좌번호} (예금주: #{고객명})
+□ 선택 세법 구분 : #{세무구분명}
+□ 필요 서류 : #{필요서류안내}
+□ 제출 방법 : 이메일(techplay.blog@gmail.com) 또는 담당자 직통 번호(010-5798-0188)로 사진 전송
+
+※ 서류 확인이 완료되는 즉시 당일 정련소 매입시세 기준 확정 실송금액을 입금해 드립니다.`,
+    buttonName: "내 정산 내역 확인하기",
+    buttonUrlTemplate: "https://#{조회링크}",
+  },
+  UN_8301: {
+    code: "UN_8301",
+    name: "관리자용 신규 위탁정련 접수알림",
+    subject: "[이온랩 관리자 알림] 신규 위탁 정련 신청 접수",
+    content: `[이온랩 관리자 알림] 신규 위탁 정련 신청이 접수되었습니다.
+
+■ 신규 접수 요약
+□ 접수번호 : #{접수번호}
+□ 접수일시 : #{접수일시}
+□ 의뢰인명 : #{고객명} (#{고객연락처})
+□ 의뢰품목 : #{모재트랙명} (신청 #{신청중량}kg)
+□ 전처리옵션 : #{전처리옵션}
+□ 정산방식 : #{정산방식}
+□ 선입금 예정 작업비 : #{선입금작업비}원
+□ 시뮬레이션 예상 금 : #{예상금중량}g
+□ 고객 메모 : #{고객메모}
+
+하단 버튼을 눌러 관리자 콘솔에서 상세 내역 및 첨부 사진을 확인해 주세요.`,
+    buttonName: "관리자 콘솔 바로가기",
+    buttonUrlTemplate: "https://refinery.techplay.blog/admin",
+  },
+};
+
+function resolveAligoConfig(cfg?: AligoEnvConfig): {
+  apiKey: string;
+  userId: string;
+  senderKey: string;
+  senderPhone: string;
+  baseUrl: string;
+} {
+  const procEnv: Record<string, string | undefined> =
+    typeof process !== "undefined" && process.env ? process.env : {};
+  const apiKey = (
+    cfg?.apiKey ||
+    procEnv.ALIGO_API_KEY ||
+    "vfykyrtmauy5auy0xx8rq9u9p83sfdgk"
+  ).trim();
+  const userId = (cfg?.userId || procEnv.ALIGO_USER_ID || "ionlab").trim();
+  const senderKey = (
+    cfg?.senderKey ||
+    procEnv.ALIGO_SENDER_KEY ||
+    "0ead7364038cbebc40bd0672fbc06566d947a385"
+  ).trim();
+  const senderPhone = normalizePhone(
+    cfg?.senderPhone || procEnv.ALIGO_SENDER_PHONE || "01057980188"
+  );
+  const baseUrl = (
+    cfg?.proxyUrl ||
+    procEnv.ALIGO_PROXY_URL ||
+    "https://kakaoapi.aligo.in"
+  )
+    .trim()
+    .replace(/\/$/, "");
+
+  return { apiKey, userId, senderKey, senderPhone, baseUrl };
+}
+
+/**
+ * 템플릿 문자열 내의 #{변수명} 치환 유틸리티
+ */
+export function applyAligoVariables(
+  templateStr: string,
+  variables: Record<string, string>
+): string {
+  let result = templateStr;
+  for (const [key, val] of Object.entries(variables)) {
+    const safeVal = val !== undefined && val !== null ? String(val) : "-";
+    result = result.split(`#{${key}}`).join(safeVal);
+  }
+  return result;
+}
+
+/**
+ * 고객 전용 트래커 접속 경로(https:// 제외한 도메인+쿼리) 생성
+ * 예: refinery.techplay.blog/?view=tracker&email=...&phone=...&pw=...
+ */
+export function buildTrackerPathWithoutProtocol(
+  email: string,
+  phone: string,
+  password?: string
+): string {
+  const base = `refinery.techplay.blog/?view=tracker&email=${encodeURIComponent(
+    (email || "").trim()
+  )}&phone=${encodeURIComponent((phone || "").trim())}`;
+  return password ? `${base}&pw=${encodeURIComponent(password.trim())}` : base;
+}
+
+export interface AligoSendResult {
+  sent: boolean;
+  code: number;
+  message: string;
+  tplCode: AligoTemplateCode;
+  mid?: string;
+}
+
+/**
+ * 알리고 알림톡 단건 발송 함수
+ * - 알리고 서버에 등록된 실제 템플릿 원문(/akv10/template/list/)을 먼저 조회하여
+ *   줄바꿈/공백/버튼 구성을 100% 일치시킨 뒤 #{변수}를 치환해 발송합니다.
+ */
+export async function sendAligoAlimtalk(params: {
+  tplCode: AligoTemplateCode;
+  receiverPhone: string;
+  receiverName?: string;
+  variables: Record<string, string>;
+  failoverSms?: boolean;
+  config?: AligoEnvConfig;
+}): Promise<AligoSendResult> {
+  const { apiKey, userId, senderKey, senderPhone, baseUrl } =
+    resolveAligoConfig(params.config);
+  const fallbackDef = ALIGO_TEMPLATE_MAP[params.tplCode];
+  const cleanReceiver = normalizePhone(params.receiverPhone);
+
+  if (!cleanReceiver || cleanReceiver.length < 9) {
+    return {
+      sent: false,
+      code: -400,
+      message: "수신자 전화번호 형식이 올바르지 않습니다.",
+      tplCode: params.tplCode,
+    };
+  }
+
+  let rawContent = fallbackDef.content;
+  let rawSubject = fallbackDef.subject;
+  let rawEmTitle = "";
+  let rawButtons: Array<Record<string, string>> = [
+    {
+      name: fallbackDef.buttonName,
+      linkType: "WL",
+      linkTypeName: "웹링크",
+      linkMo: fallbackDef.buttonUrlTemplate,
+      linkPc: fallbackDef.buttonUrlTemplate,
+      linkIos: "",
+      linkAnd: "",
+    },
+  ];
+
+  // 1) 알리고에 실제 등록된 템플릿 원문/버튼을 조회하여 미세한 공백·줄바꿈 차이까지 자동 동기화
+  try {
+    const tplRes = await fetch(`${baseUrl}/akv10/template/list/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded;charset=utf-8",
+      },
+      body: new URLSearchParams({
+        apikey: apiKey,
+        userid: userId,
+        senderkey: senderKey,
+        tpl_code: params.tplCode,
+      }).toString(),
+    });
+    if (tplRes.ok) {
+      const tplJson = (await tplRes.json()) as {
+        code?: number;
+        list?: Array<{
+          templtCode?: string;
+          templtName?: string;
+          templtContent?: string;
+          templtTitle?: string;
+          buttons?: Array<Record<string, string>>;
+        }>;
+      };
+      if (tplJson.code === 0 && Array.isArray(tplJson.list)) {
+        const matched =
+          tplJson.list.find((t) => t.templtCode === params.tplCode) ||
+          tplJson.list[0];
+        if (matched?.templtContent) {
+          rawContent = matched.templtContent;
+        }
+        if (matched?.templtTitle) {
+          rawEmTitle = matched.templtTitle;
+        }
+        if (Array.isArray(matched?.buttons)) {
+          rawButtons = matched.buttons;
+        }
+      }
+    }
+  } catch {
+    // 템플릿 조회 실패 시 내장 표준 템플릿 사용
+  }
+
+  // 2) 본문, 강조타이틀, 버튼 링크의 #{변수} 치환
+  const finalMessage = applyAligoVariables(rawContent, params.variables);
+  const finalEmTitle = rawEmTitle
+    ? applyAligoVariables(rawEmTitle, params.variables)
+    : "";
+
+  const resolvedButtons = rawButtons.map((btn) => {
+    const linkMoRaw = btn.linkMo || btn.linkM || "";
+    const linkPcRaw = btn.linkPc || btn.linkP || linkMoRaw;
+    return {
+      name: btn.name || fallbackDef.buttonName,
+      linkType: btn.linkType || "WL",
+      linkTypeName: btn.linkTypeName || "웹링크",
+      linkMo: applyAligoVariables(linkMoRaw, params.variables),
+      linkPc: applyAligoVariables(linkPcRaw, params.variables),
+      linkIos: btn.linkIos || btn.linkI || "",
+      linkAnd: btn.linkAnd || btn.linkA || "",
+    };
+  });
+
+  // 3) POST /akv10/alimtalk/send/ 호출 파라미터 구성
+  const formParams: Record<string, string> = {
+    apikey: apiKey,
+    userid: userId,
+    senderkey: senderKey,
+    tpl_code: params.tplCode,
+    sender: senderPhone,
+    receiver_1: cleanReceiver,
+    recvname_1: (params.receiverName || "고객").trim(),
+    subject_1: rawSubject,
+    message_1: finalMessage,
+  };
+
+  if (finalEmTitle) {
+    formParams.emtitle_1 = finalEmTitle;
+  }
+
+  if (resolvedButtons.length > 0) {
+    formParams.button_1 = JSON.stringify({ button: resolvedButtons });
+  }
+
+  if (params.failoverSms !== false) {
+    formParams.failover = "Y";
+    formParams.fsubject_1 = rawSubject;
+    formParams.fmessage_1 = finalMessage;
+  }
+
+  try {
+    const sendRes = await fetch(`${baseUrl}/akv10/alimtalk/send/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded;charset=utf-8",
+      },
+      body: new URLSearchParams(formParams).toString(),
+    });
+
+    const data = (await sendRes.json()) as {
+      code?: number;
+      message?: string;
+      info?: { mid?: string | number; scnt?: number; fcnt?: number };
+    };
+
+    const codeNum = Number(data?.code ?? -99);
+    return {
+      sent: codeNum === 0,
+      code: codeNum,
+      message: data?.message || (codeNum === 0 ? "발송 성공" : "발송 실패"),
+      tplCode: params.tplCode,
+      mid: data?.info?.mid ? String(data.info.mid) : undefined,
+    };
+  } catch (err) {
+    return {
+      sent: false,
+      code: -500,
+      message: err instanceof Error ? err.message : "ALIGO_NETWORK_ERROR",
+      tplCode: params.tplCode,
+    };
+  }
+}
+
+/**
+ * 알리고 발송 가능 잔여건수(/akv10/heartinfo/) 및 템플릿 검수 상태(/akv10/template/list/) 조회
+ */
+export async function fetchAligoTemplatesAndQuota(config?: AligoEnvConfig) {
+  const { apiKey, userId, senderKey, senderPhone, baseUrl } =
+    resolveAligoConfig(config);
+
+  try {
+    const [quotaRes, tplRes] = await Promise.all([
+      fetch(`${baseUrl}/akv10/heartinfo/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded;charset=utf-8",
+        },
+        body: new URLSearchParams({
+          apikey: apiKey,
+          userid: userId,
+        }).toString(),
+      }),
+      fetch(`${baseUrl}/akv10/template/list/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded;charset=utf-8",
+        },
+        body: new URLSearchParams({
+          apikey: apiKey,
+          userid: userId,
+          senderkey: senderKey,
+        }).toString(),
+      }),
+    ]);
+
+    const quotaJson = (await quotaRes.json()) as Record<string, unknown>;
+    const tplJson = (await tplRes.json()) as Record<string, unknown>;
+
+    return {
+      ok: Number(tplJson?.code) === 0,
+      userId,
+      senderKey,
+      senderPhone,
+      quota: quotaJson,
+      templates: tplJson,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      userId,
+      senderKey,
+      senderPhone,
+      error: err instanceof Error ? err.message : "ALIGO_STATUS_CHECK_FAILED",
+    };
+  }
+}
+
+/**
+ * 주문 레코드(refinery_orders)와 단계별 부가정보로부터
+ * UN_8291 ~ UN_8301 모든 템플릿에 즉시 바인딩 가능한 #{변수} 맵 생성
+ */
+export function buildOrderAlimtalkVariables(
+  order: Record<string, unknown>,
+  options?: {
+    tplCode?: AligoTemplateCode;
+    measuredValue?: string | null;
+    logDetail?: string | null;
+    confirmedCumulativeGold?: number;
+    recalculatedWorkFee?: number;
+    workFeeDiffAmount?: number;
+  }
+): Record<string, string> {
+  const fmt = (n: number) =>
+    new Intl.NumberFormat("ko-KR").format(Math.round(n));
+
+  const reqWeightKg = Number(order.weight || 0);
+  const hasActualWeight =
+    order.actual_weight !== null &&
+    order.actual_weight !== undefined &&
+    Number(order.actual_weight) > 0;
+  const actWeightKg = hasActualWeight
+    ? Number(order.actual_weight)
+    : reqWeightKg;
+  const weightDiffGrams = Math.round((actWeightKg - reqWeightKg) * 1000);
+  const absDiffGrams = Math.abs(weightDiffGrams);
+
+  const workFee = Number(order.final_work_fee || 0);
+  const recalcFee =
+    options?.recalculatedWorkFee !== undefined
+      ? options.recalculatedWorkFee
+      : workFee;
+  const feeDiff =
+    options?.workFeeDiffAmount !== undefined
+      ? options.workFeeDiffAmount
+      : recalcFee - workFee;
+
+  const weightDiffLabel =
+    weightDiffGrams === 0
+      ? "신청 중량과 일치 (±0g)"
+      : weightDiffGrams > 0
+        ? `+${weightDiffGrams.toLocaleString()}g 초과`
+        : `${weightDiffGrams.toLocaleString()}g 미달`;
+
+  const feeAdjustmentLabel =
+    absDiffGrams <= 100 || feeDiff === 0
+      ? `±100g 이내 일반 허용 오차 (선입금 작업비 ₩${fmt(workFee)} 변동 없음)`
+      : feeDiff > 0
+        ? `중량 초과 추가 작업비 +${fmt(feeDiff)}원 (STEP 04 정산 시 상계)`
+        : `중량 미달 과오납 작업비 -${fmt(Math.abs(feeDiff))}원 (STEP 04 정산 시 합산 환급)`;
+
+  const diffProcessDetail =
+    feeDiff > 0
+      ? `추가 작업비 +${fmt(feeDiff)}원 발생 (STEP 04 최종 정산금에서 상계 차감)`
+      : feeDiff < 0
+        ? `과오납 차액 -${fmt(Math.abs(feeDiff))}원 환급 (STEP 04 최종 정산금에 합산 입금)`
+        : "작업비 차액 없음";
+
+  const isCash = String(order.settlement_type) === "cash_transfer";
+  const settlementLabel = isCash
+    ? "정련소 당일 매입시세 현금 정산 (계좌이체)"
+    : String(order.delivery_method) === "visit"
+      ? "순금 실물 수령 (평택 정련실 직접 방문)"
+      : "순금 실물 수령 (우체국 안심소포 택배)";
+
+  const goldPrice = Number(order.gold_price || 171020);
+  const buyPrice = Math.round(goldPrice * 0.975);
+  const confirmedGold =
+    order.actual_gold !== null && order.actual_gold !== undefined
+      ? Number(order.actual_gold)
+      : Number(order.expected_gold || 0);
+  const withholdingTax = Number(order.withholding_tax_amount || 0);
+  const finalCashPayout = Number(
+    order.final_cash_payout || Math.round(confirmedGold * buyPrice) - withholdingTax
+  );
+
+  const taxAndPriceSummary = isCash
+    ? `정련소 매입가 ${fmt(buyPrice)}원/g (KRX 97.5%) · 원천징수 -${fmt(withholdingTax)}원 공제`
+    : "순도 98.5%~99.5% 골드 비드(Gold Button) 실물 정산";
+
+  const finalSettlementResult = isCash
+    ? `${String(order.bank_name || "")} ${String(order.bank_account || "")} (예금주: ${String(order.account_holder || order.client_name || "")}) 계좌로 세후 확정 실송금액 ${fmt(finalCashPayout)}원 이체 완료`
+    : String(order.delivery_method) === "visit"
+      ? `평택 정련실 방문 순금 비드 ${confirmedGold}g 실물 인계 완료`
+      : `우체국 안심소포(보험등기) 순금 비드 ${confirmedGold}g 발송 완료`;
+
+  // UN_8300(세무서류 요청)일 때는 고객의 정산 계좌를, UN_8291(접수/선입금 안내)일 때는 (주)이온랩 법인 입금계좌를 바인딩
+  const isClientBankTpl = options?.tplCode === "UN_8300";
+  const bankNameVar = isClientBankTpl
+    ? String(order.bank_name || "지정 은행")
+    : "IBK기업은행";
+  const bankAccountVar = isClientBankTpl
+    ? String(order.bank_account || "접수 계좌")
+    : "933-041960-04-011";
+
+  const trackerPath = buildTrackerPathWithoutProtocol(
+    String(order.client_email || ""),
+    String(order.client_phone || ""),
+    String(order.access_password || "")
+  );
+
+  return {
+    고객명: String(order.client_name || "고객"),
+    고객연락처: String(order.client_phone || "-"),
+    접수번호: String(order.receipt_number || "-"),
+    접수일시: String(order.submitted_at || "-"),
+    모재트랙명: String(order.track_name || "-"),
+    신청중량: reqWeightKg.toFixed(2),
+    실측중량: actWeightKg.toFixed(3),
+    전처리옵션: String(order.preprocess_label || "전처리 없음"),
+    정산방식: settlementLabel,
+    조회비밀번호: String(order.access_password || "-"),
+    조회링크: trackerPath,
+    입금은행: bankNameVar,
+    입금계좌번호: bankAccountVar,
+    선입금작업비: fmt(workFee),
+    예상금중량: String(order.expected_gold ?? 0),
+    확정순금중량: String(confirmedGold),
+    누적확정금중량: String(
+      options?.confirmedCumulativeGold !== undefined
+        ? options.confirmedCumulativeGold
+        : confirmedGold
+    ),
+    중량편차안내: weightDiffLabel,
+    "작업비변동 안내": feeAdjustmentLabel,
+    작업비변동안내: feeAdjustmentLabel,
+    중량편차그램:
+      weightDiffGrams >= 0
+        ? `+${weightDiffGrams.toLocaleString()}g`
+        : `${weightDiffGrams.toLocaleString()}g`,
+    실측기준작업비: fmt(recalcFee),
+    차액처리안내: diffProcessDetail,
+    핵심계측배지: String(
+      options?.measuredValue || "1인 1배치 단독 정밀 습식 공정 완료"
+    ),
+    단계코멘트: String(
+      options?.logDetail || "정련 공정이 정상적으로 처리되었습니다."
+    ),
+    적용시세및세무내역: taxAndPriceSummary,
+    최종정산출고결과: finalSettlementResult,
+    세무구분명: String(
+      order.tax_option_label || "개인 3.3% 사업소득 원천징수"
+    ),
+    필요서류안내:
+      String(order.tax_option) === "business_invoice"
+        ? "사업자등록증 사본 (세금계산서 발행용)"
+        : "신분증(주민등록증 또는 운전면허증) 사본",
+    고객메모: String(order.memo || "별도 기재사항 없음"),
+  };
+}
+
+

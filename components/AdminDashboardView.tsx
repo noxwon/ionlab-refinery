@@ -131,8 +131,90 @@ export default function AdminDashboardView({
     type: "ok" | "err";
     msg: string;
   } | null>(null);
+  const [autoSendAlimtalk, setAutoSendAlimtalk] = useState<boolean>(true);
+  const [sendingTplCode, setSendingTplCode] = useState<string | null>(null);
+  const [alimtalkStatusMsg, setAlimtalkStatusMsg] = useState<string | null>(
+    null
+  );
 
   const mediaInputRef = useRef<HTMLInputElement | null>(null);
+
+  // 알리고 카카오 알림톡 개별 수동 발송 핸들러 (UN_8291 ~ UN_8301)
+  const handleSendManualAlimtalk = async (tplCode: string, label: string) => {
+    if (!selectedOrder) return;
+    setSendingTplCode(tplCode);
+    setAlimtalkStatusMsg(null);
+    try {
+      const res = await fetch("/api/admin/alimtalk/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          adminPin,
+          receiptNumber: selectedOrder.receipt_number,
+          tplCode,
+          customComment: logDetail.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (data?.ok) {
+        const msg = `✅ [${tplCode}] '${label}' 알림톡이 ${selectedOrder.client_name}(${selectedOrder.client_phone})님께 정상 발송되었습니다.`;
+        setAlimtalkStatusMsg(msg);
+        setSaveFeedback({ type: "ok", msg });
+      } else {
+        const errMsg =
+          data?.result?.message ||
+          data?.error ||
+          "알림톡 발송 실패 (템플릿 검수중이거나 발송서버 IP 미등록)";
+        const msg = `⚠️ [${tplCode}] 알림톡 미발송 사유: ${errMsg}`;
+        setAlimtalkStatusMsg(msg);
+        setSaveFeedback({ type: "err", msg });
+      }
+    } catch {
+      setAlimtalkStatusMsg("⚠️ 알림톡 발송 요청 중 네트워크 오류가 발생했습니다.");
+    } finally {
+      setSendingTplCode(null);
+    }
+  };
+
+  // 알리고 템플릿 검수 상태 및 발송 서버 IP 연동 상태 확인
+  const handleCheckAligoStatus = async () => {
+    setSendingTplCode("STATUS");
+    setAlimtalkStatusMsg(null);
+    try {
+      const res = await fetch("/api/admin/alimtalk/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminPin }),
+      });
+      const data = await res.json();
+      if (data?.ok && Array.isArray(data?.templates?.list)) {
+        const list = data.templates.list as Array<{
+          templtCode?: string;
+          templtName?: string;
+          inspStatus?: string;
+        }>;
+        const aprCount = list.filter((t) => t.inspStatus === "APR").length;
+        const reqCount = list.filter((t) => t.inspStatus === "REQ").length;
+        const altCnt = data?.quota?.list?.ALT_CNT ?? "-";
+        setAlimtalkStatusMsg(
+          `✓ 알리고(@ionlab) 연동 정상 | 등록 템플릿 ${list.length}건 (승인완료 ${aprCount}건 / 검수중 ${reqCount}건) | 알림톡 발송가능 잔여: ${altCnt}건`
+        );
+      } else {
+        const apiMsg =
+          data?.templates?.message ||
+          data?.quota?.message ||
+          data?.error ||
+          "연동 확인 실패";
+        setAlimtalkStatusMsg(
+          `⚠️ 알리고 API 응답: "${apiMsg}" (알리고 [신청/인증] 메뉴 하단 '발송 서버 IP' 등록 및 카카오 템플릿 검수 승인 완료 후 정상 발송됩니다)`
+        );
+      }
+    } catch {
+      setAlimtalkStatusMsg("⚠️ 알리고 상태 조회 중 통신 오류가 발생했습니다.");
+    } finally {
+      setSendingTplCode(null);
+    }
+  };
 
   // 선택된 주문 및 단계가 바뀔 때 폼 기본값 동기화
   const syncFormForOrderAndStep = (
@@ -352,6 +434,7 @@ export default function AdminDashboardView({
       formData.append("measuredValue", measuredValue.trim());
       formData.append("forceUnlock", String(forceUnlock));
       formData.append("paymentConfirmed", String(paymentConfirmed));
+      formData.append("sendAlimtalk", autoSendAlimtalk ? "true" : "false");
       formData.append(
         "retainedMediaUrlsJson",
         JSON.stringify(retainedMediaUrls)
@@ -386,12 +469,18 @@ export default function AdminDashboardView({
       if (mediaInputRef.current) mediaInputRef.current.value = "";
       setForceUnlock(false);
 
+      const alimInfo = data.alimtalkResult
+        ? data.alimtalkResult.sent
+          ? ` (💬 알림톡 ${data.alimtalkResult.tplCode} 발송 완료)`
+          : ` (⚠️ 알림톡 미발송: ${data.alimtalkResult.message})`
+        : "";
+
       setSaveFeedback({
         type: "ok",
         msg:
           editStep === 4
-            ? "🎉 STEP 04 최종 정산 및 출고가 완료되어 본 의뢰 건의 1사이클이 최종 마감(잠금)되었습니다!"
-            : `✓ STEP 0${editStep} 공정 기록 및 Cloudflare R2 미디어가 정상 저장되었습니다!`,
+            ? `🎉 STEP 04 최종 정산 및 출고가 완료되어 본 의뢰 건의 1사이클이 최종 마감(잠금)되었습니다!${alimInfo}`
+            : `✓ STEP 0${editStep} 공정 기록 및 Cloudflare R2 미디어가 정상 저장되었습니다!${alimInfo}`,
       });
 
       await fetchAdminData(adminPin, selectedOrder.receipt_number);
@@ -1210,6 +1299,108 @@ export default function AdminDashboardView({
                       </div>
                     )}
 
+                    {/* 2-B) 카카오 알림톡 원클릭 발송 & 검수상태 센터 (@ionlab · UN_8291 ~ UN_8301) */}
+                    <div className="rounded-2xl border border-yellow-500/30 bg-yellow-950/15 p-4 text-xs">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center rounded-md bg-yellow-400 px-2 py-0.5 text-[10px] font-black text-slate-950">
+                            KAKAO 알림톡
+                          </span>
+                          <span className="font-extrabold text-yellow-200">
+                            @ionlab (이온랩) · 알리고 템플릿 원클릭 발송 센터
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={sendingTplCode === "STATUS"}
+                          onClick={handleCheckAligoStatus}
+                          className="rounded-lg border border-yellow-400/40 bg-slate-950 px-2.5 py-1 text-[11px] font-bold text-yellow-300 transition hover:bg-yellow-500/20 disabled:opacity-50"
+                        >
+                          {sendingTplCode === "STATUS"
+                            ? "조회중..."
+                            : "🔍 템플릿 검수 · 서버IP 연동 확인"}
+                        </button>
+                      </div>
+
+                      <div className="mt-2.5 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+                        {[
+                          {
+                            code: "UN_8291",
+                            label: "접수·선입금 안내",
+                            desc: "계좌/비밀번호 재발송",
+                          },
+                          {
+                            code: "UN_8292",
+                            label: "선입금 확인 완료",
+                            desc: "작업비 입금확인 즉시",
+                          },
+                          {
+                            code: "UN_8293",
+                            label: "STEP 01 실측완료",
+                            desc: "입고·전자저울 계량",
+                          },
+                          {
+                            code: "UN_8299",
+                            label: "입고 중량오차 안내",
+                            desc: "±100g 초과 차액고지",
+                          },
+                          {
+                            code: "UN_8294",
+                            label: "STEP 02 습식공정",
+                            desc: "침출·환원 진행안내",
+                          },
+                          {
+                            code: "UN_8296",
+                            label: "STEP 03 추출완료",
+                            desc: "순금비드 확정계량",
+                          },
+                          {
+                            code: "UN_8300",
+                            label: "세무·신분증 요청",
+                            desc: "현금정산 증빙보완",
+                          },
+                          {
+                            code: "UN_8298",
+                            label: "STEP 04 정산마감",
+                            desc: "송금/안심소포 완료",
+                          },
+                        ].map((item) => (
+                          <button
+                            key={item.code}
+                            type="button"
+                            disabled={sendingTplCode !== null}
+                            onClick={() =>
+                              handleSendManualAlimtalk(item.code, item.label)
+                            }
+                            className="flex flex-col items-start rounded-xl border border-slate-800 bg-slate-950/90 px-2.5 py-2 text-left transition hover:border-yellow-400/60 hover:bg-slate-900 disabled:opacity-50"
+                          >
+                            <div className="flex w-full items-center justify-between">
+                              <span className="font-mono text-[10px] font-bold text-yellow-400">
+                                {item.code}
+                              </span>
+                              <span className="text-[10px] text-slate-400">
+                                {sendingTplCode === item.code
+                                  ? "발송중..."
+                                  : "발송 ▶"}
+                              </span>
+                            </div>
+                            <span className="mt-0.5 text-[11px] font-extrabold text-white">
+                              {item.label}
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              {item.desc}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+
+                      {alimtalkStatusMsg && (
+                        <div className="mt-2.5 rounded-lg border border-yellow-500/30 bg-slate-950/90 px-3 py-2 text-[11px] text-yellow-200">
+                          {alimtalkStatusMsg}
+                        </div>
+                      )}
+                    </div>
+
                     {/* 3) 4단계(STEP 1 ~ STEP 4) 선택 탭 & 단계별 맞춤 입력 폼 */}
                     <form
                       onSubmit={handleSaveStepUpdate}
@@ -2013,36 +2204,60 @@ export default function AdminDashboardView({
                         )}
                       </div>
 
-                      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                        {saveFeedback ? (
-                          <span
-                            className={`text-xs font-bold ${
-                              saveFeedback.type === "ok"
-                                ? "text-emerald-400"
-                                : "text-rose-400"
-                            }`}
-                          >
-                            {saveFeedback.msg}
+                      <div className="mt-4 flex flex-col gap-3 border-t border-slate-800/80 pt-3">
+                        <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-yellow-200">
+                          <input
+                            type="checkbox"
+                            checked={autoSendAlimtalk}
+                            onChange={(e) =>
+                              setAutoSendAlimtalk(e.target.checked)
+                            }
+                            className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-yellow-400 focus:ring-yellow-400"
+                          />
+                          <span className="font-bold">
+                            💬 저장과 동시에 STEP 0{editStep} 카카오 알림톡(
+                            {editStep === 1
+                              ? "UN_8293 모재입고·실측완료"
+                              : editStep === 2
+                                ? "UN_8294 습식침출·환원공정"
+                                : editStep === 3
+                                  ? "UN_8296 순금비드 추출·계량완료"
+                                  : "UN_8298 최종정산·출고마감"}
+                            ) 고객 자동 발송
                           </span>
-                        ) : (
-                          <span className="text-[11px] text-slate-400">
-                            {editStep === 4
-                              ? "※ STEP 04 저장 시 1사이클이 최종 마감(잠금) 처리됩니다."
-                              : `※ 이미 등록된 STEP 0${editStep} 기록이 있으면 중복 누적되지 않고 최신 내용으로 덮어씁니다.`}
-                          </span>
-                        )}
+                        </label>
 
-                        <button
-                          type="submit"
-                          disabled={saving}
-                          className="rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 px-5 py-2.5 text-xs font-extrabold text-slate-950 shadow-md shadow-amber-500/20 hover:from-amber-300 hover:to-amber-400 disabled:opacity-50"
-                        >
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          {saveFeedback ? (
+                            <span
+                              className={`text-xs font-bold ${
+                                saveFeedback.type === "ok"
+                                  ? "text-emerald-400"
+                                  : "text-rose-400"
+                              }`}
+                            >
+                              {saveFeedback.msg}
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-slate-400">
+                              {editStep === 4
+                                ? "※ STEP 04 저장 시 1사이클이 최종 마감(잠금) 처리됩니다."
+                                : `※ 이미 등록된 STEP 0${editStep} 기록이 있으면 중복 누적되지 않고 최신 내용으로 덮어씁니다.`}
+                            </span>
+                          )}
+
+                          <button
+                            type="submit"
+                            disabled={saving}
+                            className="rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 px-5 py-2.5 text-xs font-extrabold text-slate-950 shadow-md shadow-amber-500/20 hover:from-amber-300 hover:to-amber-400 disabled:opacity-50"
+                          >
                           {saving
                             ? "Cloudflare R2 & D1 저장 중..."
                             : editStep === 4
                               ? "STEP 04 정산 완료 및 1사이클 최종 마감하기"
                               : `STEP 0${editStep} 완료 기록 & R2 미디어 저장`}
-                        </button>
+                          </button>
+                        </div>
                       </div>
                     </form>
 

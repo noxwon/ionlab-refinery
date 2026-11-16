@@ -4,6 +4,11 @@ import {
   normalizePhone,
   sendOrderNotificationEmail,
   escapeHtml,
+  sendAligoAlimtalk,
+  fetchAligoTemplatesAndQuota,
+  buildOrderAlimtalkVariables,
+  AligoTemplateCode,
+  AligoEnvConfig,
 } from "../lib/backend-core";
 import {
   calculateRefiningEstimate,
@@ -22,6 +27,21 @@ export interface Env {
   RESEND_API_KEY?: string;
   R2_PUBLIC_ENDPOINT?: string;
   ADMIN_PIN?: string;
+  ALIGO_API_KEY?: string;
+  ALIGO_USER_ID?: string;
+  ALIGO_SENDER_KEY?: string;
+  ALIGO_SENDER_PHONE?: string;
+  ALIGO_PROXY_URL?: string;
+}
+
+function getAligoConfigFromEnv(env: Env): AligoEnvConfig {
+  return {
+    apiKey: env.ALIGO_API_KEY,
+    userId: env.ALIGO_USER_ID,
+    senderKey: env.ALIGO_SENDER_KEY,
+    senderPhone: env.ALIGO_SENDER_PHONE,
+    proxyUrl: env.ALIGO_PROXY_URL,
+  };
 }
 
 const ALLOWED_ORIGINS = [
@@ -944,6 +964,59 @@ export default {
           env.RESEND_API_KEY
         );
 
+        // (E) 알리고 카카오 알림톡 자동 발송: 고객용(UN_8291) + 관리자용(UN_8301)
+        const aligoConfig = getAligoConfigFromEnv(env);
+        const orderRecordForAlimtalk: Record<string, unknown> = {
+          receipt_number: receiptNumber,
+          submitted_at: submittedAt,
+          client_name: String(payload.clientName || ""),
+          client_phone: clientPhoneRaw,
+          client_email: clientEmail,
+          access_password: accessPassword,
+          track_name: serverEstimate.trackName,
+          weight: weightKg,
+          preprocess_label: serverEstimate.preprocessLabel,
+          settlement_type: String(payload.settlementType || "physical_gold"),
+          delivery_method: deliveryMethodStr,
+          bank_name: bankNameStr,
+          bank_account: bankAccountStr,
+          account_holder: accountHolderStr,
+          tax_option: String(payload.taxOption || ""),
+          tax_option_label: taxOptionLabelStr,
+          withholding_tax_amount: withholdingTaxNum,
+          final_cash_payout: finalCashPayoutNum,
+          expected_gold: serverEstimate.expectedGold,
+          gold_price: goldPricePerGram,
+          final_work_fee: serverEstimate.finalWorkFee,
+          memo: String(payload.memo || ""),
+        };
+
+        const clientAlimVars = buildOrderAlimtalkVariables(
+          orderRecordForAlimtalk,
+          { tplCode: "UN_8291" }
+        );
+        const adminAlimVars = buildOrderAlimtalkVariables(
+          orderRecordForAlimtalk,
+          { tplCode: "UN_8301" }
+        );
+
+        const [clientAlimtalkResult, adminAlimtalkResult] = await Promise.all([
+          sendAligoAlimtalk({
+            tplCode: "UN_8291",
+            receiverPhone: clientPhoneRaw,
+            receiverName: String(payload.clientName || "고객"),
+            variables: clientAlimVars,
+            config: aligoConfig,
+          }),
+          sendAligoAlimtalk({
+            tplCode: "UN_8301",
+            receiverPhone: env.ALIGO_SENDER_PHONE || "01057980188",
+            receiverName: "원홍식 대표",
+            variables: adminAlimVars,
+            config: aligoConfig,
+          }),
+        ]);
+
         return new Response(
           JSON.stringify({
             ok: true,
@@ -957,6 +1030,9 @@ export default {
             emailSent: emailResult.sent,
             emailId: emailResult.id,
             emailError: emailResult.error,
+            alimtalkSent: clientAlimtalkResult.sent,
+            alimtalkMessage: clientAlimtalkResult.message,
+            adminAlimtalkSent: adminAlimtalkResult.sent,
           }),
           {
             status: 200,
@@ -1455,6 +1531,7 @@ export default {
         let forceUnlock = false;
         let retainedMediaUrls: string[] | null = null;
         let deleteMediaUrl = "";
+        let shouldSendAlimtalk = false;
         const uploadedMediaFiles: File[] = [];
 
         if (contentType.includes("multipart/form-data")) {
@@ -1471,6 +1548,9 @@ export default {
           measuredValue = String(formData.get("measuredValue") || "").trim();
           forceUnlock = formData.get("forceUnlock") === "true";
           deleteMediaUrl = String(formData.get("deleteMediaUrl") || "").trim();
+          shouldSendAlimtalk =
+            String(formData.get("sendAlimtalk") || "true") !== "false" &&
+            !deleteMediaUrl;
 
           const rawRetained = formData.get("retainedMediaUrlsJson");
           if (rawRetained !== null && typeof rawRetained === "string") {
@@ -1896,12 +1976,85 @@ export default {
           .bind(receiptNumber)
           .all<Record<string, unknown>>();
 
+        // (D) STEP 01~04 저장 시 해당 공정 단계 카카오 알림톡 자동 발송 (shouldSendAlimtalk === true 일 때)
+        let alimtalkResult = null;
+
+        if (shouldSendAlimtalk && updatedOrder) {
+          const stepTplMap: Record<number, AligoTemplateCode> = {
+            1: "UN_8293", // STEP01 모재입고 및 실측계량 완료
+            2: "UN_8294", // STEP02 습식침출 및 환원공정 안내
+            3: "UN_8296", // STEP03 순금비드 추출 및 계량완료
+            4: "UN_8298", // STEP04 최종정산 및 출고마감 안내
+          };
+          const targetTplCode = stepTplMap[stepNum];
+          if (targetTplCode) {
+            // 고객 누적 확정 금 조회 (STEP 03 안내용)
+            const cEmail = String(updatedOrder.client_email || "")
+              .trim()
+              .toLowerCase();
+            const cPhoneNorm = normalizePhone(
+              String(updatedOrder.client_phone || "")
+            );
+            const allClientOrders = await env.DB.prepare(
+              `SELECT actual_gold, client_phone FROM refinery_orders WHERE LOWER(client_email) = ?`
+            )
+              .bind(cEmail)
+              .all<Record<string, unknown>>();
+            const confirmedCumGold = Number(
+              (allClientOrders.results || [])
+                .filter(
+                  (r) =>
+                    normalizePhone(String(r.client_phone || "")) === cPhoneNorm
+                )
+                .reduce((acc, r) => acc + Number(r.actual_gold || 0), 0)
+                .toFixed(2)
+            );
+
+            // STEP 01 실측 중량에 따른 재계산 작업비 산출
+            const trackTypeVal: TrackType =
+              String(updatedOrder.track) === "ic" ? "ic" : "plating";
+            const needsPreVal =
+              String(updatedOrder.preprocess_option || "none") !== "none";
+            const actWGrams = Math.round(
+              Number(updatedOrder.actual_weight ?? updatedOrder.weight ?? 1) *
+                1000
+            );
+            const recalcEst = calculateRefiningEstimate(
+              trackTypeVal,
+              Math.max(1000, actWGrams),
+              needsPreVal,
+              Number(updatedOrder.expected_gold || 5),
+              Number(updatedOrder.gold_price || 171020)
+            );
+
+            const stepVars = buildOrderAlimtalkVariables(updatedOrder, {
+              tplCode: targetTplCode,
+              measuredValue: finalMeasured,
+              logDetail: finalDetail,
+              confirmedCumulativeGold: confirmedCumGold,
+              recalculatedWorkFee: recalcEst.finalWorkFee,
+              workFeeDiffAmount:
+                recalcEst.finalWorkFee -
+                Number(updatedOrder.final_work_fee || 0),
+            });
+
+            alimtalkResult = await sendAligoAlimtalk({
+              tplCode: targetTplCode,
+              receiverPhone: String(updatedOrder.client_phone || ""),
+              receiverName: String(updatedOrder.client_name || "고객"),
+              variables: stepVars,
+              config: getAligoConfigFromEnv(env),
+            });
+          }
+        }
+
         return new Response(
           JSON.stringify({
             ok: true,
             order: updatedOrder,
             logs: updatedLogs.results || [],
             uploadedMediaUrls: finalMediaUrls,
+            alimtalkResult,
           }),
           {
             status: 200,
@@ -1916,6 +2069,218 @@ export default {
           JSON.stringify({
             ok: false,
             error: err instanceof Error ? err.message : "UPDATE_ORDER_FAILED",
+          }),
+          {
+            status: 500,
+            headers: { "Content-Type": "application/json", ...cors },
+          }
+        );
+      }
+    }
+
+    // ------------------------------------------------------------------------
+    // 7-B. POST /api/admin/alimtalk/send (관리자 콘솔에서 지정 템플릿 원클릭 발송)
+    //      UN_8291 ~ UN_8301 전 템플릿 수동/개별 발송 지원
+    // ------------------------------------------------------------------------
+    if (
+      url.pathname === "/api/admin/alimtalk/send" &&
+      request.method === "POST"
+    ) {
+      try {
+        const body = (await request.json()) as {
+          adminPin?: string;
+          receiptNumber?: string;
+          tplCode?: AligoTemplateCode;
+          customComment?: string;
+        };
+
+        if (!isValidAdminPin(body.adminPin || "", env.ADMIN_PIN)) {
+          return new Response(
+            JSON.stringify({
+              ok: false,
+              error: "관리자 인증 PIN 번호가 일치하지 않습니다.",
+            }),
+            {
+              status: 403,
+              headers: { "Content-Type": "application/json", ...cors },
+            }
+          );
+        }
+
+        const receiptNumber = (body.receiptNumber || "").trim();
+        const tplCode = (body.tplCode || "UN_8291") as AligoTemplateCode;
+        if (!receiptNumber) {
+          return new Response(
+            JSON.stringify({
+              ok: false,
+              error: "접수번호가 필요합니다.",
+            }),
+            {
+              status: 400,
+              headers: { "Content-Type": "application/json", ...cors },
+            }
+          );
+        }
+
+        await ensureTables(env.DB);
+        const orderRow = await env.DB.prepare(
+          `SELECT * FROM refinery_orders WHERE receipt_number = ?`
+        )
+          .bind(receiptNumber)
+          .first<Record<string, unknown>>();
+
+        if (!orderRow) {
+          return new Response(
+            JSON.stringify({
+              ok: false,
+              error: "해당 주문을 찾을 수 없습니다.",
+            }),
+            {
+              status: 404,
+              headers: { "Content-Type": "application/json", ...cors },
+            }
+          );
+        }
+
+        const cEmail = String(orderRow.client_email || "")
+          .trim()
+          .toLowerCase();
+        const cPhoneNorm = normalizePhone(String(orderRow.client_phone || ""));
+        const allClientOrders = await env.DB.prepare(
+          `SELECT actual_gold, client_phone FROM refinery_orders WHERE LOWER(client_email) = ?`
+        )
+          .bind(cEmail)
+          .all<Record<string, unknown>>();
+        const confirmedCumGold = Number(
+          (allClientOrders.results || [])
+            .filter(
+              (r) =>
+                normalizePhone(String(r.client_phone || "")) === cPhoneNorm
+            )
+            .reduce((acc, r) => acc + Number(r.actual_gold || 0), 0)
+            .toFixed(2)
+        );
+
+        const trackTypeVal: TrackType =
+          String(orderRow.track) === "ic" ? "ic" : "plating";
+        const needsPreVal =
+          String(orderRow.preprocess_option || "none") !== "none";
+        const actWGrams = Math.round(
+          Number(orderRow.actual_weight ?? orderRow.weight ?? 1) * 1000
+        );
+        const recalcEst = calculateRefiningEstimate(
+          trackTypeVal,
+          Math.max(1000, actWGrams),
+          needsPreVal,
+          Number(orderRow.expected_gold || 5),
+          Number(orderRow.gold_price || 171020)
+        );
+
+        const latestLogRow = await env.DB.prepare(
+          `SELECT * FROM refinery_order_logs WHERE receipt_number = ? ORDER BY step_number DESC, id DESC LIMIT 1`
+        )
+          .bind(receiptNumber)
+          .first<Record<string, unknown>>();
+
+        const vars = buildOrderAlimtalkVariables(orderRow, {
+          tplCode,
+          measuredValue: latestLogRow?.measured_value
+            ? String(latestLogRow.measured_value)
+            : null,
+          logDetail:
+            body.customComment ||
+            (latestLogRow?.log_detail
+              ? String(latestLogRow.log_detail)
+              : null),
+          confirmedCumulativeGold: confirmedCumGold,
+          recalculatedWorkFee: recalcEst.finalWorkFee,
+          workFeeDiffAmount:
+            recalcEst.finalWorkFee - Number(orderRow.final_work_fee || 0),
+        });
+
+        const targetPhone =
+          tplCode === "UN_8301"
+            ? env.ALIGO_SENDER_PHONE || "01057980188"
+            : String(orderRow.client_phone || "");
+        const targetName =
+          tplCode === "UN_8301"
+            ? "원홍식 대표"
+            : String(orderRow.client_name || "고객");
+
+        const sendRes = await sendAligoAlimtalk({
+          tplCode,
+          receiverPhone: targetPhone,
+          receiverName: targetName,
+          variables: vars,
+          config: getAligoConfigFromEnv(env),
+        });
+
+        return new Response(
+          JSON.stringify({
+            ok: sendRes.sent,
+            result: sendRes,
+          }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json; charset=utf-8",
+              ...cors,
+            },
+          }
+        );
+      } catch (err) {
+        return new Response(
+          JSON.stringify({
+            ok: false,
+            error:
+              err instanceof Error ? err.message : "ALIMTALK_SEND_ERROR",
+          }),
+          {
+            status: 500,
+            headers: { "Content-Type": "application/json", ...cors },
+          }
+        );
+      }
+    }
+
+    // ------------------------------------------------------------------------
+    // 7-C. POST /api/admin/alimtalk/status (알리고 템플릿 검수 상태 및 잔여 포인트 조회)
+    // ------------------------------------------------------------------------
+    if (
+      url.pathname === "/api/admin/alimtalk/status" &&
+      request.method === "POST"
+    ) {
+      try {
+        const body = (await request.json()) as { adminPin?: string };
+        if (!isValidAdminPin(body.adminPin || "", env.ADMIN_PIN)) {
+          return new Response(
+            JSON.stringify({
+              ok: false,
+              error: "관리자 인증 PIN 번호가 일치하지 않습니다.",
+            }),
+            {
+              status: 403,
+              headers: { "Content-Type": "application/json", ...cors },
+            }
+          );
+        }
+
+        const statusData = await fetchAligoTemplatesAndQuota(
+          getAligoConfigFromEnv(env)
+        );
+        return new Response(JSON.stringify(statusData), {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json; charset=utf-8",
+            ...cors,
+          },
+        });
+      } catch (err) {
+        return new Response(
+          JSON.stringify({
+            ok: false,
+            error:
+              err instanceof Error ? err.message : "ALIMTALK_STATUS_ERROR",
           }),
           {
             status: 500,
