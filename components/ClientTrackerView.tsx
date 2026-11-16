@@ -22,6 +22,10 @@ import {
   Scale,
   Video,
   Image as ImageIcon,
+  CreditCard,
+  Package,
+  Info,
+  ArrowRight,
 } from "lucide-react";
 import {
   formatKRW,
@@ -739,8 +743,9 @@ export default function ClientTrackerView({
                       </span>
                       {Number(activeOrder.payment_confirmed || 0) === 1 ||
                       Number(activeOrder.current_step || 0) >= 1 ? (
-                        <span className="rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-0.5 text-xs font-bold text-emerald-300">
-                          ✓ 작업비 입금 확인 완료
+                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-0.5 text-xs font-bold text-emerald-300">
+                          <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                          <span>작업비 입금 확인 완료</span>
                         </span>
                       ) : (
                         <span className="rounded-full border border-amber-500/40 bg-amber-500/15 px-2.5 py-0.5 text-xs font-bold text-amber-300">
@@ -748,8 +753,9 @@ export default function ClientTrackerView({
                         </span>
                       )}
                       {Number(activeOrder.current_step || 0) >= 4 && (
-                        <span className="rounded-full border border-cyan-500/40 bg-cyan-500/15 px-2.5 py-0.5 text-xs font-bold text-cyan-300">
-                          🔒 1사이클 정산 완료
+                        <span className="inline-flex items-center gap-1 rounded-full border border-cyan-500/40 bg-cyan-500/15 px-2.5 py-0.5 text-xs font-bold text-cyan-300">
+                          <Lock className="h-3 w-3 text-cyan-400" />
+                          <span>1사이클 정산 완료</span>
                         </span>
                       )}
                     </div>
@@ -815,8 +821,9 @@ export default function ClientTrackerView({
                               </span>
                             )
                           ) : (
-                            <span className="text-slate-400">
-                              ✓ 신청 중량 일치 (허용오차 내)
+                            <span className="inline-flex items-center gap-1 text-slate-400">
+                              <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                              <span>신청 중량 일치 (허용오차 내)</span>
                             </span>
                           )}
                         </p>
@@ -880,11 +887,13 @@ export default function ClientTrackerView({
                   {activeOrder.settlement_type === "cash_transfer" ? (
                     <div className="space-y-1.5">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="font-bold text-emerald-300">
-                          💳 현금 정산 입금계좌 및 세법 원천징수 확인 내역
+                        <span className="inline-flex items-center gap-1.5 font-bold text-emerald-300">
+                          <CreditCard className="h-3.5 w-3.5 text-emerald-400" />
+                          <span>현금 정산 입금계좌 및 세법 원천징수 확인 내역</span>
                         </span>
-                        <span className="rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-bold text-emerald-300">
-                          ✓ 의뢰인 명의 계좌 일치 확인됨
+                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-bold text-emerald-300">
+                          <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                          <span>의뢰인 명의 계좌 일치 확인됨</span>
                         </span>
                       </div>
                       <p className="text-slate-300">
@@ -930,41 +939,48 @@ export default function ClientTrackerView({
                         <span className="font-mono font-semibold text-amber-300">
                           ₩{formatKRW(orderWithholdingTax)}
                         </span>{" "}
-                        ➔{" "}
+                        <ArrowRight className="mx-0.5 inline h-3 w-3 text-slate-400" />{" "}
                         {isOrderGoldConfirmed ? "확정 실송금액 " : "예상 실송금액 "}
                         <span className="font-mono font-extrabold text-emerald-400">
                           ₩{formatKRW(orderFinalCashPayout)}
                         </span>
                       </p>
-                      <div className="mt-1.5 rounded-lg border border-emerald-500/30 bg-emerald-950/30 px-3 py-2 text-[11px] text-slate-200">
-                        💡 <strong>의뢰인 최종 투자 손익 요약:</strong>{" "}
-                        {isOrderGoldConfirmed ? "확정 실송금액" : "예상 실송금액"}(
-                        <strong className="text-emerald-300">
-                          ₩{formatKRW(orderFinalCashPayout)}
-                        </strong>
-                        ) - STEP 01 선입금 작업비(
-                        <strong className="text-slate-300">
-                          ₩{formatKRW(orderWorkFee)}
-                        </strong>
-                        ) ={" "}
-                        <strong className="text-amber-300">
-                          {isOrderGoldConfirmed ? "최종 순수익 " : "예상 순수익 "}₩
-                          {formatKRW(orderNetProfit)}
-                        </strong>
-                        <span className="block mt-0.5 text-[10.5px] text-slate-400">
-                          ※ 작업비는 STEP 01에서 이미 선입금하셨으므로, 정산 송금 시 작업비를 이중으로 차감하지 않고 순금 매입대금 전액(세후 ₩{formatKRW(orderFinalCashPayout)})을 입금해 드립니다.
-                        </span>
+                      <div className="mt-1.5 flex items-start gap-2 rounded-lg border border-emerald-500/30 bg-emerald-950/30 px-3 py-2 text-[11px] text-slate-200">
+                        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                        <div>
+                          <strong>의뢰인 최종 투자 손익 요약:</strong>{" "}
+                          {isOrderGoldConfirmed ? "확정 실송금액" : "예상 실송금액"}(
+                          <strong className="text-emerald-300">
+                            ₩{formatKRW(orderFinalCashPayout)}
+                          </strong>
+                          ) - STEP 01 선입금 작업비(
+                          <strong className="text-slate-300">
+                            ₩{formatKRW(orderWorkFee)}
+                          </strong>
+                          ) ={" "}
+                          <strong className="text-amber-300">
+                            {isOrderGoldConfirmed ? "최종 순수익 " : "예상 순수익 "}₩
+                            {formatKRW(orderNetProfit)}
+                          </strong>
+                          <span className="block mt-0.5 text-[10.5px] text-slate-400">
+                            ※ 작업비는 STEP 01에서 이미 선입금하셨으므로, 정산 송금 시 작업비를 이중으로 차감하지 않고 순금 매입대금 전액(세후 ₩{formatKRW(orderFinalCashPayout)})을 입금해 드립니다.
+                          </span>
+                        </div>
                       </div>
                       {!isOrderGoldConfirmed && (
-                        <p className="mt-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-200">
-                          ⚖️ <strong>정산 확정 기준 및 매입가 안내:</strong> 현재 추출 전 단계로 표시된 정산액은 접수 시점 시뮬레이션 예상치입니다. <strong>실제 최종 정산 송금액은 STEP 03 공정 완료 후 정밀 실측된 순금 비드 중량(g)과 추출 당일의 [정련소 순금비드 매입 시세(KRX 공인 기준가의 97.5%)]</strong>를 적용하여 최종 확정됩니다.
-                        </p>
+                        <div className="mt-1.5 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-200">
+                          <Scale className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
+                          <span>
+                            <strong>정산 확정 기준 및 매입가 안내:</strong> 현재 추출 전 단계로 표시된 정산액은 접수 시점 시뮬레이션 예상치입니다. <strong>실제 최종 정산 송금액은 STEP 03 공정 완료 후 정밀 실측된 순금 비드 중량(g)과 추출 당일의 [정련소 순금비드 매입 시세(KRX 공인 기준가의 97.5%)]</strong>를 적용하여 최종 확정됩니다.
+                          </span>
+                        </div>
                       )}
                     </div>
                   ) : (
                     <div className="space-y-1">
-                      <span className="font-bold text-amber-300">
-                        📦 순금 실물(Gold Button) 수령 방식 및 배송지
+                      <span className="inline-flex items-center gap-1.5 font-bold text-amber-300">
+                        <Package className="h-3.5 w-3.5 text-amber-400" />
+                        <span>순금 실물(Gold Button) 수령 방식 및 배송지</span>
                       </span>
                       {activeOrder.delivery_method === "visit" ? (
                         <p className="text-slate-300">

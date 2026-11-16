@@ -9,6 +9,9 @@ import {
   FileText,
   Lock,
   ArrowRight,
+  X,
+  CreditCard,
+  Package,
 } from "lucide-react";
 import { OrderSubmissionPayload, formatKRW } from "@/lib/refining-calc";
 
@@ -340,9 +343,10 @@ export default function ReceiptModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-bold text-slate-300 hover:border-slate-500 hover:text-white"
+            className="inline-flex items-center gap-1 rounded-xl border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-bold text-slate-300 hover:border-slate-500 hover:text-white"
           >
-            닫기 ✕
+            <span>닫기</span>
+            <X className="h-3.5 w-3.5" />
           </button>
         </div>
 
@@ -446,8 +450,9 @@ export default function ReceiptModal({
               </div>
               {receiptData.settlementType === "cash_transfer" ? (
                 <div className="mt-2 rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-3 text-xs">
-                  <div className="font-bold text-emerald-300">
-                    💳 현금 정산 계좌 및 법인 출금 세금공제 확인
+                  <div className="inline-flex items-center gap-1.5 font-bold text-emerald-300">
+                    <CreditCard className="h-3.5 w-3.5 text-emerald-400" />
+                    <span>현금 정산 계좌 및 법인 출금 세금공제 확인</span>
                   </div>
                   <div className="mt-1 text-slate-300">
                     • 입금계좌: <strong>{receiptData.bankName}</strong>{" "}
@@ -459,8 +464,9 @@ export default function ReceiptModal({
                   </div>
                   <div className="mt-0.5 font-bold text-emerald-300">
                     • 예상 원천징수 세액: -₩
-                    {formatKRW(receiptData.withholdingTaxAmount || 0)} ➔ 세후
-                    예상 실송금액:{" "}
+                    {formatKRW(receiptData.withholdingTaxAmount || 0)}{" "}
+                    <ArrowRight className="mx-0.5 inline h-3 w-3 text-emerald-400" />{" "}
+                    세후 예상 실송금액:{" "}
                     <span className="text-amber-300">
                       ₩
                       {formatKRW(
@@ -475,8 +481,9 @@ export default function ReceiptModal({
                 </div>
               ) : (
                 <div className="mt-2 rounded-xl border border-slate-800 bg-slate-900/70 p-3 text-xs">
-                  <div className="font-bold text-amber-300">
-                    📦 순금 실물 수령 방식 및 주소
+                  <div className="inline-flex items-center gap-1.5 font-bold text-amber-300">
+                    <Package className="h-3.5 w-3.5 text-amber-400" />
+                    <span>순금 실물 수령 방식 및 주소</span>
                   </div>
                   <div className="mt-1 text-slate-300">
                     {receiptData.deliveryMethod === "visit"

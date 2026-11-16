@@ -32,6 +32,10 @@ import {
   Search,
   Award,
   Settings,
+  Zap,
+  Package,
+  Truck,
+  CreditCard,
 } from "lucide-react";
 import {
   TrackType,
@@ -836,7 +840,8 @@ export default function IonlabRefineryPage() {
               <div>
                 <div className="flex items-center justify-between">
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/15 px-3 py-1 text-xs font-bold text-emerald-300">
-                    🟢 Track 1 · 1일 공정 (오전 11시 접수분 당일 완성)
+                    <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                    <span>Track 1 · 1일 공정 (오전 11시 접수분 당일 완성)</span>
                   </span>
                   <Layers className="h-5 w-5 text-emerald-400" />
                 </div>
@@ -861,8 +866,9 @@ export default function IonlabRefineryPage() {
                   </li>
                 </ul>
               </div>
-              <div className="mt-6 rounded-xl bg-slate-950/80 px-3.5 py-2.5 text-xs text-emerald-300">
-                ✓ 입고 적합 상태: 플라스틱 사출물 없이 도금 금속부만 분리된 상태
+              <div className="mt-6 flex items-center gap-1.5 rounded-xl bg-slate-950/80 px-3.5 py-2.5 text-xs text-emerald-300">
+                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                <span>입고 적합 상태: 플라스틱 사출물 없이 도금 금속부만 분리된 상태</span>
               </div>
             </div>
 
@@ -871,7 +877,8 @@ export default function IonlabRefineryPage() {
               <div>
                 <div className="flex items-center justify-between">
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/40 bg-cyan-500/15 px-3 py-1 text-xs font-bold text-cyan-300">
-                    🔵 Track 2 · 2일 공정 (48시간 특수 정련)
+                    <span className="h-2 w-2 rounded-full bg-cyan-400" />
+                    <span>Track 2 · 2일 공정 (48시간 특수 정련)</span>
                   </span>
                   <Cpu className="h-5 w-5 text-cyan-400" />
                 </div>
@@ -895,8 +902,9 @@ export default function IonlabRefineryPage() {
                   </li>
                 </ul>
               </div>
-              <div className="mt-6 rounded-xl bg-slate-950/80 px-3.5 py-2.5 text-xs text-cyan-300">
-                ✓ 입고 적합 상태: PCB 기판에서 열풍/기계 탈거된 칩 단품 상태
+              <div className="mt-6 flex items-center gap-1.5 rounded-xl bg-slate-950/80 px-3.5 py-2.5 text-xs text-cyan-300">
+                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-cyan-400" />
+                <span>입고 적합 상태: PCB 기판에서 열풍/기계 탈거된 칩 단품 상태</span>
               </div>
             </div>
 
@@ -905,7 +913,8 @@ export default function IonlabRefineryPage() {
               <div>
                 <div className="flex items-center justify-between">
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/40 bg-rose-500/15 px-3 py-1 text-xs font-bold text-rose-300">
-                    🔴 입고 불가 (사전 해체 필요)
+                    <span className="h-2 w-2 rounded-full bg-rose-400" />
+                    <span>입고 불가 (사전 해체 필요)</span>
                   </span>
                   <Ban className="h-5 w-5 text-rose-400" />
                 </div>
@@ -1128,17 +1137,20 @@ export default function IonlabRefineryPage() {
           </div>
 
           {/* 99.9% 별도 상담 안내 배너 */}
-          <div className="mt-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-5 py-3.5 text-center text-xs text-amber-200 sm:text-sm">
-            💡 <strong>순도 안내:</strong> 모든 기본 공정은 비용 대비 수율 효율이
-            가장 뛰어난 <strong>1차 정련 골드 비드(순도 98.5% ~ 99.5%)</strong>로
-            추출되며, <strong>99.9% 초고순도 정제</strong>가 필요한 경우 별도 사전
-            상담 후 맞춤 진행해 드립니다.
+          <div className="mt-6 flex items-center justify-center gap-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-5 py-3.5 text-center text-xs text-amber-200 sm:text-sm">
+            <Info className="h-4 w-4 shrink-0 text-amber-400" />
+            <span>
+              <strong>순도 안내:</strong> 모든 기본 공정은 비용 대비 수율 효율이
+              가장 뛰어난 <strong>1차 정련 골드 비드(순도 98.5% ~ 99.5%)</strong>로
+              추출되며, <strong>99.9% 초고순도 정제</strong>가 필요한 경우 별도 사전
+              상담 후 맞춤 진행해 드립니다.
+            </span>
           </div>
         </div>
       </section>
 
       {/* =====================================================================
-          Section 5. ⚡ 인터랙티브 견적 & 기대수익 시뮬레이터 (그램 단위 부드러운 슬라이더)
+          Section 5. 인터랙티브 견적 & 기대수익 시뮬레이터 (그램 단위 부드러운 슬라이더)
       ===================================================================== */}
       <section
         ref={simulatorRef}
@@ -1148,7 +1160,8 @@ export default function IonlabRefineryPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3.5 py-1 text-xs font-extrabold text-amber-300">
-              ⚡ GRAM-PRECISION PROFIT SIMULATOR
+              <Zap className="h-3.5 w-3.5 text-amber-400" />
+              <span>GRAM-PRECISION PROFIT SIMULATOR</span>
             </span>
             <h2 className="mt-3 text-2xl font-black text-white sm:text-3xl">
               인터랙티브 견적 & 기대수익 시뮬레이터
@@ -1612,8 +1625,8 @@ export default function IonlabRefineryPage() {
                     <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-400" />
                     <div>
                       <strong>
-                        ⚠️ 예상 수율 미달: 작업 시 손해가 발생할 수 있으니 무료
-                        AI 사전 스캔을 먼저 권장합니다.
+                        예상 수율 미달: 작업 시 손해가 발생할 수 있으니 무료 AI
+                        사전 스캔을 먼저 권장합니다.
                       </strong>
                     </div>
                   </div>
@@ -1730,7 +1743,7 @@ export default function IonlabRefineryPage() {
       </section>
 
       {/* =====================================================================
-          Section 7. 📝 온라인 작업 접수 & 고객 자동 인식 폼
+          Section 7. 온라인 작업 접수 & 고객 자동 인식 폼
       ===================================================================== */}
       <section
         ref={orderFormRef}
@@ -1740,7 +1753,8 @@ export default function IonlabRefineryPage() {
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1 text-xs font-extrabold text-emerald-300">
-              📝 ONLINE WORK ORDER & CUSTOMER TRACKING
+              <FileText className="h-3.5 w-3.5 text-emerald-400" />
+              <span>ONLINE WORK ORDER & CUSTOMER TRACKING</span>
             </span>
             <h2 className="mt-3 text-2xl font-black text-white sm:text-3xl">
               온라인 위탁 정련 작업 접수
@@ -1966,8 +1980,9 @@ export default function IonlabRefineryPage() {
               {settlementType === "physical_gold" && (
                 <div className="mt-4 rounded-2xl border border-amber-500/30 bg-slate-950/85 p-4 sm:p-5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-xs font-extrabold text-amber-300">
-                      📦 순금 비드(Gold Button) 수령 방법 및 주소지 입력
+                    <span className="inline-flex items-center gap-1.5 text-xs font-extrabold text-amber-300">
+                      <Package className="h-4 w-4 text-amber-400" />
+                      <span>순금 비드(Gold Button) 수령 방법 및 주소지 입력</span>
                     </span>
                     <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-bold text-amber-300">
                       카카오 우편번호 서비스 연동
@@ -1989,8 +2004,9 @@ export default function IonlabRefineryPage() {
                         onChange={() => setDeliveryMethod("courier")}
                         className="h-3.5 w-3.5 text-amber-500"
                       />
+                      <Truck className="h-4 w-4 shrink-0 text-amber-400" />
                       <span>
-                        📮 우체국 안심소포(보험등기) 택배로 수령 (주소 입력)
+                        우체국 안심소포(보험등기) 택배로 수령 (주소 입력)
                       </span>
                     </label>
 
@@ -2008,8 +2024,9 @@ export default function IonlabRefineryPage() {
                         onChange={() => setDeliveryMethod("visit")}
                         className="h-3.5 w-3.5 text-amber-500"
                       />
+                      <Building2 className="h-4 w-4 shrink-0 text-amber-400" />
                       <span>
-                        🏢 평택 정련실 직접 방문 수령 (고덕면 도시지원1길 116)
+                        평택 정련실 직접 방문 수령 (고덕면 도시지원1길 116)
                       </span>
                     </label>
                   </div>
@@ -2075,19 +2092,28 @@ export default function IonlabRefineryPage() {
                   {/* (1) 정산 계좌 입력 및 의뢰인 = 예금주 명의 일치 실시간 검증 */}
                   <div>
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-xs font-extrabold text-emerald-300">
-                        💳 [필수 1] 현금 정산 입금계좌 및 예금주 본인 일치 확인
+                      <span className="inline-flex items-center gap-1.5 text-xs font-extrabold text-emerald-300">
+                        <CreditCard className="h-4 w-4 text-emerald-400" />
+                        <span>[필수 1] 현금 정산 입금계좌 및 예금주 본인 일치 확인</span>
                       </span>
                       <span
-                        className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${
+                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${
                           isAccountHolderMatched
                             ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
                             : "border-rose-500/40 bg-rose-500/15 text-rose-300"
                         }`}
                       >
-                        {isAccountHolderMatched
-                          ? `✓ 의뢰인(${clientName.trim()}) = 예금주(${accountHolder.trim()}) 명의 일치`
-                          : "⚠️ 의뢰인 성함과 예금주 명의 일치 필수"}
+                        {isAccountHolderMatched ? (
+                          <>
+                            <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                            <span>{`의뢰인(${clientName.trim()}) = 예금주(${accountHolder.trim()}) 명의 일치`}</span>
+                          </>
+                        ) : (
+                          <>
+                            <AlertTriangle className="h-3 w-3 text-rose-400" />
+                            <span>의뢰인 성함과 예금주 명의 일치 필수</span>
+                          </>
+                        )}
                       </span>
                     </div>
 
@@ -2146,13 +2172,16 @@ export default function IonlabRefineryPage() {
                     </div>
 
                     {accountHolder.trim() && !isAccountHolderMatched && (
-                      <p className="mt-2 rounded-xl border border-rose-500/40 bg-rose-950/40 px-3 py-2 text-xs font-semibold text-rose-300">
-                        ⚠️ 입력하신 의뢰인 성함/업체명(
-                        <strong>{clientName.trim() || "미입력"}</strong>)과
-                        예금주명(<strong>{accountHolder.trim()}</strong>)이
-                        다릅니다. 금융실명법 및 법인 출금 회계 규정상 타인 명의
-                        계좌로는 송금이 불가합니다.
-                      </p>
+                      <div className="mt-2 flex items-start gap-2 rounded-xl border border-rose-500/40 bg-rose-950/40 px-3 py-2 text-xs font-semibold text-rose-300">
+                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-400" />
+                        <span>
+                          입력하신 의뢰인 성함/업체명(
+                          <strong>{clientName.trim() || "미입력"}</strong>)과
+                          예금주명(<strong>{accountHolder.trim()}</strong>)이
+                          다릅니다. 금융실명법 및 법인 출금 회계 규정상 타인 명의
+                          계좌로는 송금이 불가합니다.
+                        </span>
+                      </div>
                     )}
 
                     <label className="mt-3 flex cursor-pointer items-center gap-2.5 rounded-xl border border-slate-800 bg-slate-900/70 px-3.5 py-2.5 text-xs text-slate-200">
@@ -2174,8 +2203,9 @@ export default function IonlabRefineryPage() {
                   {/* (2) 법인 출금에 따른 세법 안내 및 세금공제 여부 선택·동의 */}
                   <div className="border-t border-slate-800 pt-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-xs font-extrabold text-amber-300">
-                        ⚖️ [필수 2] (주)이온랩 법인 출금 세법 안내 및 세금공제 확인
+                      <span className="inline-flex items-center gap-1.5 text-xs font-extrabold text-amber-300">
+                        <Scale className="h-4 w-4 text-amber-400" />
+                        <span>[필수 2] (주)이온랩 법인 출금 세법 안내 및 세금공제 확인</span>
                       </span>
                       <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-bold text-amber-300">
                         소득세법 제127조 · 법인세법 지출증빙 준수
@@ -2314,8 +2344,9 @@ export default function IonlabRefineryPage() {
                     ) : (
                       <div className="mt-3 rounded-xl border border-cyan-500/30 bg-slate-900/90 p-3.5 text-xs">
                         <div className="flex flex-wrap items-center justify-between gap-1.5">
-                          <span className="font-extrabold text-cyan-300">
-                            🪪 세무사 원천징수(지급명세서) 신고용 본인확인 안내
+                          <span className="inline-flex items-center gap-1.5 font-extrabold text-cyan-300">
+                            <ShieldCheck className="h-4 w-4 text-cyan-400" />
+                            <span>세무사 원천징수(지급명세서) 신고용 본인확인 안내</span>
                           </span>
                           <span className="rounded bg-cyan-500/15 px-2 py-0.5 text-[10px] font-bold text-cyan-200">
                             소득세법 제164조 지급명세서 제출 의무
@@ -2411,10 +2442,13 @@ export default function IonlabRefineryPage() {
                         {idCardDeliveryMethod === "upload_now" && (
                           <div className="mt-3 rounded-xl border border-dashed border-cyan-500/40 bg-slate-950/90 p-3">
                             <div className="flex flex-wrap items-center justify-between gap-2">
-                              <span className="text-[11px] font-bold text-cyan-200">
-                                🔒 신분증 사본(주민등록증·운전면허증) 이미지 첨부
-                                — Cloudflare R2 보안 버킷에 암호화 저장되며 세무
-                                신고 외 용도로 절대 사용되지 않습니다.
+                              <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-cyan-200">
+                                <Lock className="h-3.5 w-3.5 shrink-0 text-cyan-400" />
+                                <span>
+                                  신분증 사본(주민등록증·운전면허증) 이미지 첨부
+                                  — Cloudflare R2 보안 버킷에 암호화 저장되며 세무
+                                  신고 외 용도로 절대 사용되지 않습니다.
+                                </span>
                               </span>
                             </div>
                             <input
@@ -2428,10 +2462,13 @@ export default function IonlabRefineryPage() {
                             />
                             {idCardFile && (
                               <div className="mt-1.5 flex items-center justify-between rounded-lg bg-cyan-500/15 px-2.5 py-1 text-[11px] text-cyan-200">
-                                <span>
-                                  ✓ 첨부됨: {idCardFile.name} (
-                                  {(idCardFile.size / (1024 * 1024)).toFixed(2)}
-                                  MB)
+                                <span className="inline-flex items-center gap-1.5">
+                                  <CheckCircle2 className="h-3.5 w-3.5 text-cyan-400" />
+                                  <span>
+                                    첨부됨: {idCardFile.name} (
+                                    {(idCardFile.size / (1024 * 1024)).toFixed(2)}
+                                    MB)
+                                  </span>
                                 </span>
                                 <button
                                   type="button"
@@ -2475,8 +2512,11 @@ export default function IonlabRefineryPage() {
                       </div>
                     </div>
 
-                    <div className="mt-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 text-[11px] text-amber-200 leading-relaxed">
-                      ⚖️ <strong>정산 금액 확정 기준 및 매입시세 안내:</strong> 상기 정산 금액은 접수 시점의 모재 예상치 기준 가계산된 시뮬레이션 금액입니다. <strong>실제 최종 정산 송금액은 STEP 03 공정 완료 후 정밀 전자저울로 실측된 실제 추출 순금량(g)과 정산 완료 당일의 [정련소 순금비드 매입 시세(KRX 공인 기준가의 97.5%)]를 적용하여 최종 확정</strong>되어 계좌로 송금됩니다. (※ STEP 01에서 선입금하신 작업비는 이중 차감하지 않고, 추출된 순금 매입대금 전액을 송금해 드립니다.)
+                    <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 text-[11px] text-amber-200 leading-relaxed">
+                      <Scale className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+                      <span>
+                        <strong>정산 금액 확정 기준 및 매입시세 안내:</strong> 상기 정산 금액은 접수 시점의 모재 예상치 기준 가계산된 시뮬레이션 금액입니다. <strong>실제 최종 정산 송금액은 STEP 03 공정 완료 후 정밀 전자저울로 실측된 실제 추출 순금량(g)과 정산 완료 당일의 [정련소 순금비드 매입 시세(KRX 공인 기준가의 97.5%)]를 적용하여 최종 확정</strong>되어 계좌로 송금됩니다. (※ STEP 01에서 선입금하신 작업비는 이중 차감하지 않고, 추출된 순금 매입대금 전액을 송금해 드립니다.)
+                      </span>
                     </div>
 
                     <label className="mt-3 flex cursor-pointer items-center gap-2.5 rounded-xl border border-slate-800 bg-slate-900/70 px-3.5 py-2.5 text-xs text-slate-200">
@@ -2611,8 +2651,9 @@ export default function IonlabRefineryPage() {
             </div>
 
             {formError && (
-              <div className="rounded-2xl border border-rose-500/40 bg-rose-950/40 px-4 py-3 text-xs font-semibold text-rose-300">
-                ⚠️ {formError}
+              <div className="flex items-center gap-2 rounded-2xl border border-rose-500/40 bg-rose-950/40 px-4 py-3 text-xs font-semibold text-rose-300">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-rose-400" />
+                <span>{formError}</span>
               </div>
             )}
 

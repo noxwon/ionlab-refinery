@@ -317,7 +317,7 @@ export async function sendOrderNotificationEmail(
 
       <!-- 주식회사 이온랩 작업비 입금 전용 법인 계좌 박스 (웹사이트 비노출 · 이메일 보안 발송) -->
       <div style="background:linear-gradient(135deg,#06241B 0%,#0F172A 100%);border:2px solid #10B981;border-radius:14px;padding:20px;margin-bottom:20px;">
-        <h3 style="margin:0 0 8px 0;color:#34D399;font-size:16px;">🏦 작업비 입금 전용 법인 계좌 안내 (고객 전용 보안 발송)</h3>
+        <h3 style="margin:0 0 8px 0;color:#34D399;font-size:16px;">[보안 안내] 작업비 입금 전용 법인 계좌 안내</h3>
         <p style="margin:0 0 12px 0;color:#CBD5E1;font-size:13px;line-height:1.5;">
           당사는 보이스피싱·3자 사기 등 범죄 악용을 방지하기 위해 웹사이트에 법인 계좌를 공개하지 않으며, 접수된 의뢰인께만 이메일로 안전하게 개별 안내해 드립니다.
         </p>
@@ -336,7 +336,7 @@ export async function sendOrderNotificationEmail(
 
       <!-- 의뢰인 전용 작업 로그 조회 임시 비밀번호 박스 -->
       <div style="background:linear-gradient(135deg,#0F172A 0%,#1E293B 100%);border:2px solid #38BDF8;border-radius:14px;padding:20px;margin-bottom:20px;">
-        <h3 style="margin:0 0 8px 0;color:#38BDF8;font-size:16px;">🔐 실시간 작업 로그 조회용 인증 정보</h3>
+        <h3 style="margin:0 0 8px 0;color:#38BDF8;font-size:16px;">[전용 인증] 실시간 작업 로그 조회용 인증 정보</h3>
         <p style="margin:0 0 14px 0;color:#CBD5E1;font-size:13px;line-height:1.5;">
           모재 입고부터 산처리·침전 반응, 순금 용융 및 전자저울 계량까지 전 과정을 전용 트래커 화면에서 실시간으로 확인하실 수 있습니다.
         </p>
@@ -346,7 +346,7 @@ export async function sendOrderNotificationEmail(
           <p style="margin:8px 0 4px 0;font-size:15px;color:#FFFFFF;">• <strong>발급된 임시 비밀번호:</strong> <span style="display:inline-block;background:#F59E0B;color:#0B0F17;font-weight:900;font-size:17px;letter-spacing:2px;padding:3px 12px;border-radius:6px;margin-left:6px;">${safeAccessPassword}</span></p>
         </div>
         <a href="${escapeHtml(trackerUrl)}" target="_blank" style="display:inline-block;background:#F59E0B;color:#0B0F17;font-weight:800;font-size:14px;text-decoration:none;padding:12px 22px;border-radius:10px;">
-          내 작업 로그 실시간 조회하기 ➔
+          내 작업 로그 실시간 조회하기 &rarr;
         </a>
       </div>
 
@@ -373,7 +373,7 @@ export async function sendOrderNotificationEmail(
                 params.finalCashPayout || params.netClientProfit
               )}</strong></p>
               <div style="margin-top:8px;padding:8px 12px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);border-radius:8px;font-size:12px;color:#FDE68A;line-height:1.45;">
-                ⚖️ <strong>[정산 확정 기준 및 정련소 매입가 안내]</strong> 상기 정산 금액은 접수 시점 예상 시뮬레이션 금액입니다. <strong>실제 최종 정산 송금액은 STEP 03 공정 완료 후 전자저울로 정밀 실측된 실제 추출 순금량(g)과 정산 완료일 당일의 정련소 순금비드 매입시세(KRX 공인 기준가의 97.5%)를 적용하여 최종 확정</strong>되어 입금됩니다. (※ STEP 01에서 선입금하신 작업비는 이중 차감하지 않고, 추출된 순금 매입대금 전액을 세무 공제 후 투명하게 송금해 드립니다.)
+                <strong>[정산 확정 기준 및 정련소 매입가 안내]</strong> 상기 정산 금액은 접수 시점 예상 시뮬레이션 금액입니다. <strong>실제 최종 정산 송금액은 STEP 03 공정 완료 후 전자저울로 정밀 실측된 실제 추출 순금량(g)과 정산 완료일 당일의 정련소 순금비드 매입시세(KRX 공인 기준가의 97.5%)를 적용하여 최종 확정</strong>되어 입금됩니다. (※ STEP 01에서 선입금하신 작업비는 이중 차감하지 않고, 추출된 순금 매입대금 전액을 세무 공제 후 투명하게 송금해 드립니다.)
               </div>`
         }
       </div>
@@ -461,12 +461,12 @@ export async function sendOrderNotificationEmail(
     const adminHtml = `
       <div style="font-family:'Pretendard Variable',Pretendard,-apple-system,BlinkMacSystemFont,sans-serif;max-width:660px;margin:0 auto;background:#070A10;color:#F8FAFC;border:2px solid #38BDF8;border-radius:18px;padding:24px;margin-bottom:16px;">
         <div style="background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.4);border-radius:12px;padding:16px;margin-bottom:20px;">
-          <h3 style="margin:0 0 6px 0;color:#38BDF8;font-size:17px;">🔔 [관리자 전용 알림] 신규 위탁정련 작업 의뢰가 접수되었습니다</h3>
+          <h3 style="margin:0 0 6px 0;color:#38BDF8;font-size:17px;">[관리자 전용 알림] 신규 위탁정련 작업 의뢰가 접수되었습니다</h3>
           <p style="margin:0 0 12px 0;color:#E2E8F0;font-size:13px;">
             의뢰인(<strong>${safeClientName}</strong> / ${safeClientPhone} / ${safeClientEmail})님께 작업비 입금계좌(<strong>IBK기업은행 933-041960-04-011 주식회사 이온랩</strong>)와 조회 비밀번호(<strong>${safeAccessPassword}</strong>)가 포함된 안내 메일이 발송되었습니다.
           </p>
           <a href="${escapeHtml(adminUrl)}" target="_blank" style="display:inline-block;background:#38BDF8;color:#0B0F17;font-weight:800;font-size:13px;text-decoration:none;padding:10px 18px;border-radius:8px;">
-            정련팀 관리자 콘솔(/admin) 바로 열기 ➔
+            정련팀 관리자 콘솔(/admin) 바로 열기 &rarr;
           </a>
         </div>
         ${html}

@@ -29,6 +29,12 @@ import {
   CreditCard,
   ChevronLeft,
   ChevronRight,
+  AlertTriangle,
+  Info,
+  Zap,
+  Package,
+  Building2,
+  MessageSquare,
 } from "lucide-react";
 import {
   OrderRecord,
@@ -157,7 +163,7 @@ export default function AdminDashboardView({
       });
       const data = await res.json();
       if (data?.ok) {
-        const msg = `✅ [${tplCode}] '${label}' 알림톡이 ${selectedOrder.client_name}(${selectedOrder.client_phone})님께 정상 발송되었습니다.`;
+        const msg = `[${tplCode}] '${label}' 알림톡이 ${selectedOrder.client_name}(${selectedOrder.client_phone})님께 정상 발송되었습니다.`;
         setAlimtalkStatusMsg(msg);
         setSaveFeedback({ type: "ok", msg });
       } else {
@@ -165,12 +171,12 @@ export default function AdminDashboardView({
           data?.result?.message ||
           data?.error ||
           "알림톡 발송 실패 (템플릿 검수중이거나 발송서버 IP 미등록)";
-        const msg = `⚠️ [${tplCode}] 알림톡 미발송 사유: ${errMsg}`;
+        const msg = `[${tplCode}] 알림톡 미발송 사유: ${errMsg}`;
         setAlimtalkStatusMsg(msg);
         setSaveFeedback({ type: "err", msg });
       }
     } catch {
-      setAlimtalkStatusMsg("⚠️ 알림톡 발송 요청 중 네트워크 오류가 발생했습니다.");
+      setAlimtalkStatusMsg("알림톡 발송 요청 중 네트워크 오류가 발생했습니다.");
     } finally {
       setSendingTplCode(null);
     }
@@ -197,7 +203,7 @@ export default function AdminDashboardView({
         const reqCount = list.filter((t) => t.inspStatus === "REQ").length;
         const altCnt = data?.quota?.list?.ALT_CNT ?? "-";
         setAlimtalkStatusMsg(
-          `✓ 알리고(@ionlab) 연동 정상 | 등록 템플릿 ${list.length}건 (승인완료 ${aprCount}건 / 검수중 ${reqCount}건) | 알림톡 발송가능 잔여: ${altCnt}건`
+          `알리고(@ionlab) 연동 정상 | 등록 템플릿 ${list.length}건 (승인완료 ${aprCount}건 / 검수중 ${reqCount}건) | 알림톡 발송가능 잔여: ${altCnt}건`
         );
       } else {
         const apiMsg =
@@ -206,11 +212,11 @@ export default function AdminDashboardView({
           data?.error ||
           "연동 확인 실패";
         setAlimtalkStatusMsg(
-          `⚠️ 알리고 API 응답: "${apiMsg}" (알리고 [신청/인증] 메뉴 하단 '발송 서버 IP' 등록 및 카카오 템플릿 검수 승인 완료 후 정상 발송됩니다)`
+          `알리고 API 응답: "${apiMsg}" (알리고 [신청/인증] 메뉴 하단 '발송 서버 IP' 등록 및 카카오 템플릿 검수 승인 완료 후 정상 발송됩니다)`
         );
       }
     } catch {
-      setAlimtalkStatusMsg("⚠️ 알리고 상태 조회 중 통신 오류가 발생했습니다.");
+      setAlimtalkStatusMsg("알리고 상태 조회 중 통신 오류가 발생했습니다.");
     } finally {
       setSendingTplCode(null);
     }
@@ -404,7 +410,7 @@ export default function AdminDashboardView({
     ) {
       setSaveFeedback({
         type: "err",
-        msg: "⚠️ STEP 01 완료를 위해 실제 측정한 모재 중량(g)을 입력해 주세요.",
+        msg: "STEP 01 완료를 위해 실제 측정한 모재 중량(g)을 입력해 주세요.",
       });
       return;
     }
@@ -416,7 +422,7 @@ export default function AdminDashboardView({
     ) {
       setSaveFeedback({
         type: "err",
-        msg: "⚠️ STEP 03 완료를 위해 실제 추출된 순금 비드 중량(g)을 입력해 주세요.",
+        msg: "STEP 03 완료를 위해 실제 추출된 순금 비드 중량(g)을 입력해 주세요.",
       });
       return;
     }
@@ -471,16 +477,16 @@ export default function AdminDashboardView({
 
       const alimInfo = data.alimtalkResult
         ? data.alimtalkResult.sent
-          ? ` (💬 알림톡 ${data.alimtalkResult.tplCode} 발송 완료)`
-          : ` (⚠️ 알림톡 미발송: ${data.alimtalkResult.message})`
+          ? ` (알림톡 ${data.alimtalkResult.tplCode} 발송 완료)`
+          : ` (알림톡 미발송: ${data.alimtalkResult.message})`
         : "";
 
       setSaveFeedback({
         type: "ok",
         msg:
           editStep === 4
-            ? `🎉 STEP 04 최종 정산 및 출고가 완료되어 본 의뢰 건의 1사이클이 최종 마감(잠금)되었습니다!${alimInfo}`
-            : `✓ STEP 0${editStep} 공정 기록 및 Cloudflare R2 미디어가 정상 저장되었습니다!${alimInfo}`,
+            ? `STEP 04 최종 정산 및 출고가 완료되어 본 의뢰 건의 1사이클이 최종 마감(잠금)되었습니다!${alimInfo}`
+            : `STEP 0${editStep} 공정 기록 및 Cloudflare R2 미디어가 정상 저장되었습니다!${alimInfo}`,
       });
 
       await fetchAdminData(adminPin, selectedOrder.receipt_number);
@@ -540,7 +546,7 @@ export default function AdminDashboardView({
 
       setSaveFeedback({
         type: "ok",
-        msg: `🗑️ STEP 0${stepNum}에서 선택한 사진/영상이 정상 삭제되었습니다.`,
+        msg: `STEP 0${stepNum}에서 선택한 사진/영상이 정상 삭제되었습니다.`,
       });
       await fetchAdminData(adminPin, selectedOrder.receipt_number);
     } catch {
@@ -891,7 +897,7 @@ export default function AdminDashboardView({
                             {ord.receipt_number}
                           </span>
                           <span
-                            className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
                               curStep >= 4
                                 ? "bg-emerald-500/20 text-emerald-300"
                                 : curStep === 0
@@ -899,11 +905,16 @@ export default function AdminDashboardView({
                                   : "bg-cyan-500/20 text-cyan-300"
                             }`}
                           >
-                            {curStep >= 4
-                              ? "🔒 1사이클 마감(STEP 4)"
-                              : curStep === 0
-                                ? "입금·입고 대기"
-                                : `STEP 0${curStep} 완료`}
+                            {curStep >= 4 ? (
+                              <>
+                                <Lock className="h-2.5 w-2.5 text-emerald-400" />
+                                <span>1사이클 마감(STEP 4)</span>
+                              </>
+                            ) : curStep === 0 ? (
+                              "입금·입고 대기"
+                            ) : (
+                              `STEP 0${curStep} 완료`
+                            )}
                           </span>
                         </div>
 
@@ -1115,11 +1126,12 @@ export default function AdminDashboardView({
                       {selectedOrder.settlement_type === "cash_transfer" ? (
                         <div className="space-y-1.5">
                           <div className="flex flex-wrap items-center justify-between gap-2">
-                            <span className="font-extrabold text-emerald-300">
-                              💳 [현금 정산 요청 건] 입금 계좌 · 예금주 본인 일치 · 법인 세법 공제 확인
+                            <span className="inline-flex items-center gap-1.5 font-extrabold text-emerald-300">
+                              <CreditCard className="h-3.5 w-3.5 text-emerald-400" />
+                              <span>[현금 정산 요청 건] 입금 계좌 · 예금주 본인 일치 · 법인 세법 공제 확인</span>
                             </span>
                             <span
-                              className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${
+                              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${
                                 !selectedOrder.account_holder ||
                                 selectedOrder.account_holder.trim() ===
                                   selectedOrder.client_name.trim()
@@ -1129,9 +1141,17 @@ export default function AdminDashboardView({
                             >
                               {!selectedOrder.account_holder ||
                               selectedOrder.account_holder.trim() ===
-                                selectedOrder.client_name.trim()
-                                ? "✓ 의뢰인 = 예금주 명의 일치"
-                                : `⚠️ 명의 대조 필요 (의뢰인: ${selectedOrder.client_name} / 예금주: ${selectedOrder.account_holder})`}
+                                selectedOrder.client_name.trim() ? (
+                                <>
+                                  <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                                  <span>의뢰인 = 예금주 명의 일치</span>
+                                </>
+                              ) : (
+                                <>
+                                  <AlertTriangle className="h-3 w-3 text-amber-400" />
+                                  <span>{`명의 대조 필요 (의뢰인: ${selectedOrder.client_name} / 예금주: ${selectedOrder.account_holder})`}</span>
+                                </>
+                              )}
                             </span>
                           </div>
                           <div className="grid grid-cols-1 gap-2 pt-1 sm:grid-cols-3">
@@ -1237,8 +1257,9 @@ export default function AdminDashboardView({
                       ) : (
                         <div className="space-y-1">
                           <div className="flex flex-wrap items-center justify-between gap-2">
-                            <span className="font-extrabold text-amber-300">
-                              📦 [순금 실물(Gold Button) 수령 요청 건] 배송지 및 수령 방식
+                            <span className="inline-flex items-center gap-1.5 font-extrabold text-amber-300">
+                              <Package className="h-3.5 w-3.5 text-amber-400" />
+                              <span>[순금 실물(Gold Button) 수령 요청 건] 배송지 및 수령 방식</span>
                             </span>
                             <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-bold text-amber-300">
                               {selectedOrder.delivery_method === "visit"
@@ -1314,11 +1335,14 @@ export default function AdminDashboardView({
                           type="button"
                           disabled={sendingTplCode === "STATUS"}
                           onClick={handleCheckAligoStatus}
-                          className="rounded-lg border border-yellow-400/40 bg-slate-950 px-2.5 py-1 text-[11px] font-bold text-yellow-300 transition hover:bg-yellow-500/20 disabled:opacity-50"
+                          className="inline-flex items-center gap-1 rounded-lg border border-yellow-400/40 bg-slate-950 px-2.5 py-1 text-[11px] font-bold text-yellow-300 transition hover:bg-yellow-500/20 disabled:opacity-50"
                         >
-                          {sendingTplCode === "STATUS"
-                            ? "조회중..."
-                            : "🔍 템플릿 검수 · 서버IP 연동 확인"}
+                          <Search className="h-3 w-3 text-yellow-400" />
+                          <span>
+                            {sendingTplCode === "STATUS"
+                              ? "조회중..."
+                              : "템플릿 검수 · 서버IP 연동 확인"}
+                          </span>
                         </button>
                       </div>
 
@@ -1411,9 +1435,12 @@ export default function AdminDashboardView({
                       }`}
                     >
                       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                        <span className="text-xs font-extrabold text-amber-300">
-                          📌 작업할 공정 단계를 선택하세요 (단계당 1개의 공식
-                          기록으로 저장·수정됩니다)
+                        <span className="inline-flex items-center gap-1.5 text-xs font-extrabold text-amber-300">
+                          <Layers className="h-3.5 w-3.5 text-amber-400" />
+                          <span>
+                            작업할 공정 단계를 선택하세요 (단계당 1개의 공식
+                            기록으로 저장·수정됩니다)
+                          </span>
                         </span>
                       </div>
 
@@ -1543,8 +1570,11 @@ export default function AdminDashboardView({
                                   </p>
 
                                   {!isWeightDiffSignificant ? (
-                                    <div className="rounded-lg border border-slate-700/80 bg-slate-900/80 px-3 py-2 text-[11px] text-slate-300">
-                                      ✓ <strong>±100g 이내 일반 허용 오차 범위</strong>입니다. 선입금 작업비(₩{formatKRW(settlementWorkFee)}) 변동 없이 그대로 진행합니다.
+                                    <div className="flex items-center gap-1.5 rounded-lg border border-slate-700/80 bg-slate-900/80 px-3 py-2 text-[11px] text-slate-300">
+                                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                                      <span>
+                                        <strong>±100g 이내 일반 허용 오차 범위</strong>입니다. 선입금 작업비(₩{formatKRW(settlementWorkFee)}) 변동 없이 그대로 진행합니다.
+                                      </span>
                                     </div>
                                   ) : (
                                     <div
@@ -1555,10 +1585,18 @@ export default function AdminDashboardView({
                                       }`}
                                     >
                                       <div className="flex flex-wrap items-center justify-between gap-2">
-                                        <span className="font-extrabold">
-                                          {workFeeDiffAmount > 0
-                                            ? "⚠️ 실측 중량 초과 (+100g 초과) → 추가 작업비 발생"
-                                            : "💡 실측 중량 미달 (-100g 초과) → 초과 납부 작업비 환급 대상"}
+                                        <span className="inline-flex items-center gap-1.5 font-extrabold">
+                                          {workFeeDiffAmount > 0 ? (
+                                            <>
+                                              <AlertTriangle className="h-3.5 w-3.5 text-amber-400" />
+                                              <span>실측 중량 초과 (+100g 초과) → 추가 작업비 발생</span>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Info className="h-3.5 w-3.5 text-cyan-400" />
+                                              <span>실측 중량 미달 (-100g 초과) → 초과 납부 작업비 환급 대상</span>
+                                            </>
+                                          )}
                                         </span>
                                         <span className="rounded bg-slate-950/80 px-2 py-0.5 font-mono font-bold text-white">
                                           실측({(measuredGramsNum / 1000).toFixed(2)}kg) 기준 작업비: ₩{formatKRW(recalculatedWorkFee)}
@@ -1598,7 +1636,8 @@ export default function AdminDashboardView({
                                         }}
                                         className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-slate-900/90 px-2.5 py-1.5 text-[11px] font-bold text-white transition hover:bg-slate-800"
                                       >
-                                        ⚡ STEP 01 상세 코멘트에 중량 차액 정산 안내문 자동 삽입
+                                        <Zap className="h-3.5 w-3.5 text-amber-400" />
+                                        <span>STEP 01 상세 코멘트에 중량 차액 정산 안내문 자동 삽입</span>
                                       </button>
                                     </div>
                                   )}
@@ -1671,7 +1710,7 @@ export default function AdminDashboardView({
                                   </span>
                                 </div>
                                 <span
-                                  className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${
+                                  className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${
                                     !selectedOrder.account_holder ||
                                     selectedOrder.account_holder.trim() ===
                                       selectedOrder.client_name.trim()
@@ -1681,9 +1720,17 @@ export default function AdminDashboardView({
                                 >
                                   {!selectedOrder.account_holder ||
                                   selectedOrder.account_holder.trim() ===
-                                    selectedOrder.client_name.trim()
-                                    ? "✓ 의뢰인 = 예금주 본인 명의 일치"
-                                    : `⚠️ 명의 불일치 주의 (${selectedOrder.client_name} ≠ ${selectedOrder.account_holder})`}
+                                    selectedOrder.client_name.trim() ? (
+                                    <>
+                                      <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                                      <span>의뢰인 = 예금주 본인 명의 일치</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <AlertTriangle className="h-3 w-3 text-amber-400" />
+                                      <span>{`명의 불일치 주의 (${selectedOrder.client_name} ≠ ${selectedOrder.account_holder})`}</span>
+                                    </>
+                                  )}
                                 </span>
                               </div>
 
@@ -1707,7 +1754,7 @@ export default function AdminDashboardView({
                                             );
                                             setSaveFeedback({
                                               type: "ok",
-                                              msg: "📋 고객 입금 계좌번호가 클립보드에 복사되었습니다.",
+                                              msg: "고객 입금 계좌번호가 클립보드에 복사되었습니다.",
                                             });
                                           }
                                         }}
@@ -1776,7 +1823,7 @@ export default function AdminDashboardView({
                                       </span>
                                     ) : (
                                       <span className="inline-block rounded bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-300">
-                                        ⚠️ 송금 전 신분증 사본 수령 확인 (
+                                        <AlertTriangle className='mr-1 inline h-3 w-3 text-amber-400' />송금 전 신분증 사본 수령 확인 (
                                         {selectedOrder.id_card_method ===
                                         "send_before_payout"
                                           ? "정산 전 별도 제출 선택"
@@ -1829,8 +1876,8 @@ export default function AdminDashboardView({
                                       <div className="flex justify-between rounded bg-slate-950/80 px-1.5 py-1 text-[10px] font-bold">
                                         <span className={workFeeDiffAmount > 0 ? "text-amber-300" : "text-cyan-300"}>
                                           {workFeeDiffAmount > 0
-                                            ? "⚠️ 실측 중량 초과 추가 작업비 차감:"
-                                            : "💡 실측 중량 미달 작업비 차액 환급:"}
+                                            ? "실측 중량 초과 추가 작업비 차감:"
+                                            : "실측 중량 미달 작업비 차액 환급:"}
                                         </span>
                                         <span className={`font-mono ${workFeeDiffAmount > 0 ? "text-amber-300" : "text-cyan-300"}`}>
                                           {workFeeDiffAmount > 0
@@ -1851,8 +1898,9 @@ export default function AdminDashboardView({
                                     </span>
                                   </div>
                                   <div className="mt-1.5 rounded-lg border border-emerald-500/30 bg-emerald-950/40 px-2 py-1 text-[10px] text-slate-300">
-                                    <p className="text-emerald-300 font-bold">
-                                      💡 의뢰인 최종 실수익: ₩{formatKRW(settlementNetClientProfit)}
+                                    <p className="inline-flex flex-wrap items-center gap-1 text-emerald-300 font-bold">
+                                      <Info className="h-3 w-3 text-emerald-400" />
+                                      <span>의뢰인 최종 실수익: ₩{formatKRW(settlementNetClientProfit)}</span>
                                       <span className="font-normal text-slate-300"> (실송금 ₩{formatKRW(settlementFinalCashPayout)} - 선입금 작업비 ₩{formatKRW(settlementWorkFee)})</span>
                                     </p>
                                     <p className="mt-0.5 text-slate-400 text-[9.5px]">
@@ -1863,10 +1911,13 @@ export default function AdminDashboardView({
                               </div>
 
                               <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                                <span className="text-[11px] text-slate-300">
-                                  💡 계좌이체 완료 후 아래 자동 채우기 버튼을
-                                  누르면 송금 내역이 STEP 04 기록란에 즉시
-                                  입력됩니다. (이체확인증 캡처도 R2 첨부 가능)
+                                <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-300">
+                                  <Info className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                                  <span>
+                                    계좌이체 완료 후 아래 자동 채우기 버튼을
+                                    누르면 송금 내역이 STEP 04 기록란에 즉시
+                                    입력됩니다. (이체확인증 캡처도 R2 첨부 가능)
+                                  </span>
                                 </span>
                                 <button
                                   type="button"
@@ -1887,9 +1938,10 @@ export default function AdminDashboardView({
                                       `${goldLabel} 추출 순금 ${settlementGoldGrams}g에 대해 ${taxDesc} ${payoutLabel} ₩${formatKRW(settlementFinalCashPayout)}을 고객 지정 계좌[${bankInfo}]로 이체 완료하여 정련 1사이클이 최종 마감되었습니다.`
                                     );
                                   }}
-                                  className="rounded-xl border border-emerald-400/50 bg-emerald-500/20 px-3.5 py-2 text-xs font-extrabold text-emerald-200 hover:bg-emerald-500/30"
+                                  className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-400/50 bg-emerald-500/20 px-3.5 py-2 text-xs font-extrabold text-emerald-200 hover:bg-emerald-500/30"
                                 >
-                                  ⚡ 계좌이체 정산 완료 내역 자동 채우기
+                                  <Zap className="h-3.5 w-3.5 text-emerald-300" />
+                                  <span>계좌이체 정산 완료 내역 자동 채우기</span>
                                 </button>
                               </div>
                             </div>
@@ -1904,10 +1956,18 @@ export default function AdminDashboardView({
                                     운송장 입력
                                   </span>
                                 </div>
-                                <span className="rounded-full border border-amber-500/40 bg-amber-500/15 px-2.5 py-0.5 text-[11px] font-bold text-amber-300">
-                                  {selectedOrder.delivery_method === "visit"
-                                    ? "🏢 평택 정련실 방문 수령"
-                                    : "🚚 우체국 안심소포(보험등기) 택배 발송"}
+                                <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/15 px-2.5 py-0.5 text-[11px] font-bold text-amber-300">
+                                  {selectedOrder.delivery_method === "visit" ? (
+                                    <>
+                                      <Building2 className="h-3 w-3 text-amber-400" />
+                                      <span>평택 정련실 방문 수령</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Truck className="h-3 w-3 text-amber-400" />
+                                      <span>우체국 안심소포(보험등기) 택배 발송</span>
+                                    </>
+                                  )}
                                 </span>
                               </div>
 
@@ -1934,7 +1994,7 @@ export default function AdminDashboardView({
                                               );
                                               setSaveFeedback({
                                                 type: "ok",
-                                                msg: "📋 배송지 주소가 클립보드에 복사되었습니다.",
+                                                msg: "배송지 주소가 클립보드에 복사되었습니다.",
                                               });
                                             }
                                           }}
@@ -2024,10 +2084,12 @@ export default function AdminDashboardView({
                                           );
                                         }
                                       }}
-                                      className="rounded-lg border border-amber-400/50 bg-amber-500/20 px-3 py-1.5 text-[11px] font-extrabold text-amber-200 hover:bg-amber-500/30"
+                                      className="inline-flex items-center gap-1.5 rounded-lg border border-amber-400/50 bg-amber-500/20 px-3 py-1.5 text-[11px] font-extrabold text-amber-200 hover:bg-amber-500/30"
                                     >
-                                      ⚡ 안심소포 발송 / 방문 인계 내역 자동
-                                      채우기
+                                      <Zap className="h-3.5 w-3.5 text-amber-300" />
+                                      <span>
+                                        안심소포 발송 / 방문 인계 내역 자동 채우기
+                                      </span>
                                     </button>
                                   </div>
                                 </div>
@@ -2108,8 +2170,9 @@ export default function AdminDashboardView({
                                 현재 STEP 0{editStep}에 등록된 사진·영상 (
                                 {retainedMediaUrls.length}개)
                               </span>
-                              <span className="text-[10px] text-slate-400">
-                                🗑️ 클릭 시 R2 스토리지 및 타임라인에서 즉시 삭제
+                              <span className="inline-flex items-center gap-1 text-[10px] text-slate-400">
+                                <Trash2 className="h-3 w-3 text-rose-400" />
+                                <span>클릭 시 R2 스토리지 및 타임라인에서 즉시 삭제</span>
                               </span>
                             </div>
                             <div className="flex flex-wrap gap-3">
@@ -2194,9 +2257,10 @@ export default function AdminDashboardView({
                                       prev.filter((_, idx) => idx !== i)
                                     )
                                   }
-                                  className="ml-1 rounded bg-rose-500/30 px-1.5 py-0.5 text-[10px] font-bold text-rose-200 hover:bg-rose-500/50"
+                                  className="ml-1 inline-flex items-center gap-0.5 rounded bg-rose-500/30 px-1.5 py-0.5 text-[10px] font-bold text-rose-200 hover:bg-rose-500/50"
                                 >
-                                  ✕ 취소
+                                  <X className="h-2.5 w-2.5" />
+                                  <span>취소</span>
                                 </button>
                               </span>
                             ))}
@@ -2214,16 +2278,19 @@ export default function AdminDashboardView({
                             }
                             className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-yellow-400 focus:ring-yellow-400"
                           />
-                          <span className="font-bold">
-                            💬 저장과 동시에 STEP 0{editStep} 카카오 알림톡(
-                            {editStep === 1
-                              ? "UN_8293 모재입고·실측완료"
-                              : editStep === 2
-                                ? "UN_8294 습식침출·환원공정"
-                                : editStep === 3
-                                  ? "UN_8296 순금비드 추출·계량완료"
-                                  : "UN_8298 최종정산·출고마감"}
-                            ) 고객 자동 발송
+                          <span className="inline-flex items-center gap-1.5 font-bold">
+                            <MessageSquare className="h-3.5 w-3.5 text-yellow-400" />
+                            <span>
+                              저장과 동시에 STEP 0{editStep} 카카오 알림톡(
+                              {editStep === 1
+                                ? "UN_8293 모재입고·실측완료"
+                                : editStep === 2
+                                  ? "UN_8294 습식침출·환원공정"
+                                  : editStep === 3
+                                    ? "UN_8296 순금비드 추출·계량완료"
+                                    : "UN_8298 최종정산·출고마감"}
+                              ) 고객 자동 발송
+                            </span>
                           </span>
                         </label>
 
