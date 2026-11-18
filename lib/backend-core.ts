@@ -769,7 +769,7 @@ function resolveAligoConfig(cfg?: AligoEnvConfig): {
   const baseUrl = (
     cfg?.proxyUrl ||
     procEnv.ALIGO_PROXY_URL ||
-    "https://kakaoapi.aligo.in"
+    "https://158-247-239-106.sslip.io"
   )
     .trim()
     .replace(/\/$/, "");
@@ -1137,6 +1137,9 @@ export function buildOrderAlimtalkVariables(
     String(order.client_phone || ""),
     String(order.access_password || "")
   );
+  const trackerQueryOnly = trackerPath.includes("/?")
+    ? trackerPath.split("/?")[1]
+    : "";
 
   return {
     고객명: String(order.client_name || "고객"),
@@ -1150,6 +1153,7 @@ export function buildOrderAlimtalkVariables(
     정산방식: settlementLabel,
     조회비밀번호: String(order.access_password || "-"),
     조회링크: trackerPath,
+    조회파라미터: trackerQueryOnly,
     입금은행: bankNameVar,
     입금계좌번호: bankAccountVar,
     선입금작업비: fmt(workFee),

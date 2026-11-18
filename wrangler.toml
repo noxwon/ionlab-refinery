@@ -23,6 +23,7 @@ bucket_name = "ionlab-refinery-img"
 # 3. 환경 변수
 [vars]
 R2_PUBLIC_ENDPOINT = "https://50ae1037c217963ee7964fb37487644c.r2.cloudflarestorage.com/ionlab-refinery-img"
+ALIGO_PROXY_URL = "https://158-247-239-106.sslip.io"
 
 # 4. 관찰 가능성 및 실시간 로그 (Observability & Logs)
 [observability]
