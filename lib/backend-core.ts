@@ -815,6 +815,58 @@ export interface AligoSendResult {
   mid?: string;
 }
 
+const ALIGO_DIRECT_ORIGIN = "https://kakaoapi.aligo.in";
+
+function isAligoIpAuthError(data: {
+  code?: unknown;
+  message?: unknown;
+}): boolean {
+  return (
+    Number(data?.code) === -99 &&
+    typeof data?.message === "string" &&
+    data.message.toUpperCase().includes("IP")
+  );
+}
+
+/**
+ * 알리고 API POST(form-urlencoded) 호출
+ * - 프록시 서버 IP가 미인증(-99) 또는 연결 불가인 경우 직통 엔드포인트(kakaoapi.aligo.in)로 자동 폴백합니다.
+ */
+async function postAligoForm<T extends Record<string, unknown>>(
+  baseUrl: string,
+  path: string,
+  bodyParams: Record<string, string>
+): Promise<{ data: T; usedOrigin: string }> {
+  const encodedBody = new URLSearchParams(bodyParams).toString();
+  const callOrigin = async (origin: string): Promise<T> => {
+    const res = await fetch(`${origin}${path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded;charset=utf-8",
+      },
+      body: encodedBody,
+    });
+    return (await res.json()) as T;
+  };
+
+  let first: T;
+  try {
+    first = await callOrigin(baseUrl);
+  } catch (err) {
+    if (baseUrl !== ALIGO_DIRECT_ORIGIN) {
+      const direct = await callOrigin(ALIGO_DIRECT_ORIGIN);
+      return { data: direct, usedOrigin: ALIGO_DIRECT_ORIGIN };
+    }
+    throw err;
+  }
+
+  if (baseUrl !== ALIGO_DIRECT_ORIGIN && isAligoIpAuthError(first)) {
+    const direct = await callOrigin(ALIGO_DIRECT_ORIGIN);
+    return { data: direct, usedOrigin: ALIGO_DIRECT_ORIGIN };
+  }
+  return { data: first, usedOrigin: baseUrl };
+}
+
 /**
  * 알리고 알림톡 단건 발송 함수
  * - 알리고 서버에 등록된 실제 템플릿 원문(/akv10/template/list/)을 먼저 조회하여
@@ -843,7 +895,7 @@ export async function sendAligoAlimtalk(params: {
   }
 
   let rawContent = fallbackDef.content;
-  let rawSubject = fallbackDef.subject;
+  const rawSubject = fallbackDef.subject;
   let rawEmTitle = "";
   let rawButtons: Array<Record<string, string>> = [
     {
@@ -857,44 +909,39 @@ export async function sendAligoAlimtalk(params: {
     },
   ];
 
+  let activeBaseUrl = baseUrl;
+
   // 1) 알리고에 실제 등록된 템플릿 원문/버튼을 조회하여 미세한 공백·줄바꿈 차이까지 자동 동기화
   try {
-    const tplRes = await fetch(`${baseUrl}/akv10/template/list/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded;charset=utf-8",
-      },
-      body: new URLSearchParams({
-        apikey: apiKey,
-        userid: userId,
-        senderkey: senderKey,
-        tpl_code: params.tplCode,
-      }).toString(),
+    const { data: tplJson, usedOrigin } = await postAligoForm<{
+      code?: number;
+      message?: string;
+      list?: Array<{
+        templtCode?: string;
+        templtName?: string;
+        templtContent?: string;
+        templtTitle?: string;
+        buttons?: Array<Record<string, string>>;
+      }>;
+    }>(baseUrl, "/akv10/template/list/", {
+      apikey: apiKey,
+      userid: userId,
+      senderkey: senderKey,
+      tpl_code: params.tplCode,
     });
-    if (tplRes.ok) {
-      const tplJson = (await tplRes.json()) as {
-        code?: number;
-        list?: Array<{
-          templtCode?: string;
-          templtName?: string;
-          templtContent?: string;
-          templtTitle?: string;
-          buttons?: Array<Record<string, string>>;
-        }>;
-      };
-      if (tplJson.code === 0 && Array.isArray(tplJson.list)) {
-        const matched =
-          tplJson.list.find((t) => t.templtCode === params.tplCode) ||
-          tplJson.list[0];
-        if (matched?.templtContent) {
-          rawContent = matched.templtContent;
-        }
-        if (matched?.templtTitle) {
-          rawEmTitle = matched.templtTitle;
-        }
-        if (Array.isArray(matched?.buttons)) {
-          rawButtons = matched.buttons;
-        }
+    activeBaseUrl = usedOrigin;
+    if (tplJson.code === 0 && Array.isArray(tplJson.list)) {
+      const matched =
+        tplJson.list.find((t) => t.templtCode === params.tplCode) ||
+        tplJson.list[0];
+      if (matched?.templtContent) {
+        rawContent = matched.templtContent;
+      }
+      if (matched?.templtTitle) {
+        rawEmTitle = matched.templtTitle;
+      }
+      if (Array.isArray(matched?.buttons)) {
+        rawButtons = matched.buttons;
       }
     }
   } catch {
@@ -949,19 +996,11 @@ export async function sendAligoAlimtalk(params: {
   }
 
   try {
-    const sendRes = await fetch(`${baseUrl}/akv10/alimtalk/send/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded;charset=utf-8",
-      },
-      body: new URLSearchParams(formParams).toString(),
-    });
-
-    const data = (await sendRes.json()) as {
+    const { data } = await postAligoForm<{
       code?: number;
       message?: string;
       info?: { mid?: string | number; scnt?: number; fcnt?: number };
-    };
+    }>(activeBaseUrl, "/akv10/alimtalk/send/", formParams);
 
     const codeNum = Number(data?.code ?? -99);
     return {
@@ -990,39 +1029,29 @@ export async function fetchAligoTemplatesAndQuota(config?: AligoEnvConfig) {
 
   try {
     const [quotaRes, tplRes] = await Promise.all([
-      fetch(`${baseUrl}/akv10/heartinfo/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded;charset=utf-8",
-        },
-        body: new URLSearchParams({
-          apikey: apiKey,
-          userid: userId,
-        }).toString(),
+      postAligoForm<Record<string, unknown>>(baseUrl, "/akv10/heartinfo/", {
+        apikey: apiKey,
+        userid: userId,
       }),
-      fetch(`${baseUrl}/akv10/template/list/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded;charset=utf-8",
-        },
-        body: new URLSearchParams({
+      postAligoForm<Record<string, unknown>>(
+        baseUrl,
+        "/akv10/template/list/",
+        {
           apikey: apiKey,
           userid: userId,
           senderkey: senderKey,
-        }).toString(),
-      }),
+        }
+      ),
     ]);
 
-    const quotaJson = (await quotaRes.json()) as Record<string, unknown>;
-    const tplJson = (await tplRes.json()) as Record<string, unknown>;
-
     return {
-      ok: Number(tplJson?.code) === 0,
+      ok: Number(tplRes.data?.code) === 0,
       userId,
       senderKey,
       senderPhone,
-      quota: quotaJson,
-      templates: tplJson,
+      usedOrigin: tplRes.usedOrigin,
+      quota: quotaRes.data,
+      templates: tplRes.data,
     };
   } catch (err) {
     return {
